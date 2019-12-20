@@ -142,6 +142,8 @@ PUBLIC void UART_vInit(void)
 {
     DBG_vPrintf(TRACE_UART, "Initialising UART ...");
 
+    vAHI_UartSetRTSCTS(UART, FALSE);
+
     /* Enable UART 0 */
     vAHI_UartEnable(UART);
 
@@ -160,7 +162,7 @@ PUBLIC void UART_vInit(void)
     }
     #endif
 
-    vAHI_UartSetRTSCTS(UART, TRUE);
+    //vAHI_UartSetRTSCTS(UART, TRUE);
     vAHI_UartSetControl(UART, FALSE, FALSE, E_AHI_UART_WORD_LEN_8, TRUE, FALSE); /* [I SP001222_P1 279] */
     vAHI_UartSetInterrupt(UART, FALSE, FALSE, FALSE, TRUE, E_AHI_UART_FIFO_LEVEL_1);    // No TX ints!
 

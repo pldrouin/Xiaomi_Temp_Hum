@@ -35,6 +35,7 @@
 #ifndef APP_END_DEVICE_NODE_H_
 #define APP_END_DEVICE_NODE_H_
 
+#define END_DEVICE_SHT_VDD (13)
 
 /****************************************************************************/
 /***        Macro Definitions                                             ***/

@@ -183,6 +183,8 @@ PUBLIC void APP_vInitialiseNode(void)
 
     APP_bButtonInitialise();
 
+    vAHI_DioSetDirection(0, 1<<END_DEVICE_SHT_VDD);
+
     eNodeState = E_STARTUP;
     PDM_eReadDataFromRecord(PDM_ID_APP_END_DEVICE,
                             &eNodeState,

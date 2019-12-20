@@ -51,7 +51,7 @@ typedef enum {
             APP_E_BUTTONS_BUTTON_SW4,
 } APP_teButtons;
 
-#define APP_BUTTONS_NUM 1
+#define APP_BUTTONS_NUM (1UL)
 #define APP_BUTTONS_BUTTON_1          (5)
 #define APP_BUTTONS_DIO_MASK        ((1 << APP_BUTTONS_BUTTON_1))
 #define APP_BUTTONS_DIO_MASK_FOR_DEEP_SLEEP        ((1 << APP_BUTTONS_BUTTON_1))

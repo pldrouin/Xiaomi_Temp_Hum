@@ -353,18 +353,29 @@ PRIVATE void vProcessCommand(void)
 
     }
 #endif  /* define uses install codes */
-    else if (0 == stricmp((char*)token, "temphum"))
+    else if (0 == stricmp((char*)token, "togglesht"))
     {
-           DBG_vPrintf(TRACE_SERIAL, "Temperature and humidity\n");
-           uint16_t temp, hum;
-           sht3x_get_measurements(&temp, &hum);
-           DBG_vPrintf(TRACE_SERIAL, "Values are %04lx, %04lx\n",temp,hum);
+    	   uint32_t oldval = u32AHI_DioReadInput() & (1<<END_DEVICE_SHT_VDD);
+    	   uint32_t newval = (~oldval) & (1<<END_DEVICE_SHT_VDD);
+    	   vAHI_DioSetOutput(newval,oldval);
+           DBG_vPrintf(TRUE, "SHT power set to %i\n",newval>>END_DEVICE_SHT_VDD);
     }
     if (sButtonEvent.eType != APP_E_EVENT_NONE)
     {
         ZQ_bQueueSend(&APP_msgAppEvents, &sButtonEvent);
     }
 
+    else if (0 == stricmp((char*)token, "temphum"))
+    {
+           DBG_vPrintf(TRUE, "Temperature and humidity\n");
+           uint16_t temp, hum;
+           while(sht3x_get_measurements(&temp, &hum)){}
+           DBG_vPrintf(TRUE, "Values are %i/100 C, %i/100 %%\n",((uint32_t)(temp)*17500)/65535-4500,((uint32_t)hum)*10000/65535);
+    }
+    if (sButtonEvent.eType != APP_E_EVENT_NONE)
+    {
+        ZQ_bQueueSend(&APP_msgAppEvents, &sButtonEvent);
+    }
 
     memset(sCommand.au8Buffer, 0, COMMAND_BUF_SIZE);
     sCommand.u8Pos = 0;
