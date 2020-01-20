@@ -128,6 +128,8 @@ PUBLIC void APP_taskAtSerial( void)
     if (ZQ_bQueueReceive(&APP_msgSerialRx, &u8RxByte) == TRUE)
     {
         DBG_vPrintf(TRACE_SERIAL, "Rx Char %02x\n", u8RxByte);
+        u8KeepAliveTime = KEEP_ALIVETIME;
+        u8DeepSleepTime = DEEP_SLEEPTIME;
         vProcessRxChar(u8RxByte);
     }
 }
@@ -327,7 +329,7 @@ PRIVATE void vProcessCommand(void)
             else if (bValidateKeyStr(token))
             {
                 uint8 Key[16];
-                DBG_vPrintf(TRACE_SERIAL, "Adjested String %s\n", token);
+                DBG_vPrintf(TRACE_SERIAL, "Adjusted String %s\n", token);
                 uint8 val;
                 int i;
                 for (i=0; i<16; i++)
@@ -355,10 +357,14 @@ PRIVATE void vProcessCommand(void)
 #endif  /* define uses install codes */
     else if (0 == stricmp((char*)token, "togglesht"))
     {
-    	   uint32_t oldval = u32AHI_DioReadInput() & (1<<END_DEVICE_SHT_VDD);
-    	   uint32_t newval = (~oldval) & (1<<END_DEVICE_SHT_VDD);
+    	   uint32_t oldval = u32AHI_DioReadInput() & (1<<DIO_SHT_VDD);
+    	   uint32_t newval = (~oldval) & (1<<DIO_SHT_VDD);
+
+    	   if(oldval) sht3x_i2c_disable_nocheck();
     	   vAHI_DioSetOutput(newval,oldval);
-           DBG_vPrintf(TRUE, "SHT power set to %i\n",newval>>END_DEVICE_SHT_VDD);
+
+    	   if(newval) sht3x_i2c_configure_nocheck();
+           DBG_vPrintf(TRUE, "SHT power set to %i\n",newval>>DIO_SHT_VDD);
     }
     if (sButtonEvent.eType != APP_E_EVENT_NONE)
     {

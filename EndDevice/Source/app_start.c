@@ -57,6 +57,7 @@
 #include "uart.h"
 #include "ZTimer.h"
 #include "app_buttons.h"
+#include "app_sht3x.h"
 #ifdef APP_NTAG_ICODE
 #include "ntag_nwk.h"
 #include "app_ntag_icode.h"
@@ -146,7 +147,7 @@ PUBLIC void vAppMain(void)
     /*
      * Don't use RTS/CTS pins on UART0 as they are used for buttons
      * */
-    //vAHI_UartSetRTSCTS(E_AHI_UART_0, FALSE);
+    vAHI_UartSetRTSCTS(E_AHI_UART_0, FALSE);
     /* Initialise the debug diagnostics module to use UART0 at 115K Baud;
      * Do not use UART 1 if LEDs are used, as it shares DIO with the LEDS */
     DBG_vUartInit(DBG_E_UART_0, DBG_E_UART_BAUD_RATE_115200);
@@ -269,6 +270,8 @@ PWRM_CALLBACK(PreSleep)
 
     ZTIMER_vSleep();
 
+    while(sht3x_i2c_clear_alerts());
+
     /* Set up wake up dio input */
     vSetUpWakeUpConditions(bDeepSleep);
 
@@ -277,6 +280,8 @@ PWRM_CALLBACK(PreSleep)
 
     /* Disable UART (if enabled) */
     vAHI_UartDisable(E_AHI_UART_0);
+
+    sht3x_i2c_disable();
 }
 
 /****************************************************************************
@@ -304,9 +309,22 @@ PWRM_CALLBACK(Wakeup)
     vAHI_OptimiseWaitStates();
 #endif
 
+    uint32_t diowake=u32AHI_DioWakeStatus();
+
+    if(diowake&(1<<UART_RXD_DIO)) {
+    	u8KeepAliveTime = KEEP_ALIVETIME;
+    	u8DeepSleepTime = DEEP_SLEEPTIME;
+
+    } else if(diowake&(1<<DIO_SHT_ALERT)) {
+    	//u8KeepAliveTime = KEEP_ALIVETIME;
+    	//u8DeepSleepTime = DEEP_SLEEPTIME;
+    	sht3x_alert=TRUE;
+    }
+
+    vAHI_DioInterruptEnable(0, (1<<UART_RXD_DIO));
 
     /* Don't use RTS/CTS pins on UART0 as they are used for buttons */
-    //vAHI_UartSetRTSCTS(E_AHI_UART_0, FALSE);
+    vAHI_UartSetRTSCTS(E_AHI_UART_0, FALSE);
     DBG_vUartInit(DBG_E_UART_0, DBG_E_UART_BAUD_RATE_115200);
     #ifdef DEBUG_921600
     {
@@ -316,7 +334,8 @@ PWRM_CALLBACK(Wakeup)
     }
     #endif
     DBG_vPrintf(TRACE_SLEEP, "\n\nAPP: Woken up (CB)");
-    DBG_vPrintf(TRACE_SLEEP, "\nAPP: Warm Waking powerStatus = 0x%x", u8AHI_PowerStatus());
+    DBG_vPrintf(TRACE_SLEEP, "\nAPP: Warm Waking powerStatus = 0x%x\n", u8AHI_PowerStatus());
+    DBG_vPrintf(TRACE_SLEEP, "DioWake: 0x%08x\n",diowake);
 
     /* If the power status is OK and RAM held while sleeping
      * restore the MAC settings
@@ -332,10 +351,13 @@ PWRM_CALLBACK(Wakeup)
 
     ZTIMER_vWake();
 
+    UART_vInit();
+    UART_vRtsStartFlow();
+    sht3x_i2c_configure();
+
     /* Activate the SleepTask, that would start the SW timer and polling would continue
      * */
     APP_vStartUpHW();
-
 
 }
 /****************************************************************************
@@ -351,17 +373,23 @@ PWRM_CALLBACK(Wakeup)
 PRIVATE void vSetUpWakeUpConditions(bool_t bDeepSleep)
 {
     u32AHI_DioWakeStatus();                         /* clear interrupts */
-    vAHI_DioSetDirection(APP_BUTTONS_DIO_MASK,0);   /* Set as Power Button(DIO0) as Input */
+    //vAHI_DioSetDirection(APP_BUTTONS_DIO_MASK|(1<<DIO_SHT_ALERT),0);   /* Set Power Button(DIO0) and SHT DIO line as Input */
+    vAHI_DioSetDirection(APP_BUTTONS_DIO_MASK|(1<<DIO_SHT_ALERT)|(1<<UART_RXD_DIO),0);   /* Set Power Button(DIO0) and SHT DIO line as Input */
+
+
     DBG_vPrintf(TRACE_SLEEP, "Going to sleep: Buttons:%08x Mask:%08x\n", u32AHI_DioReadInput() & APP_BUTTONS_DIO_MASK_FOR_DEEP_SLEEP, APP_BUTTONS_DIO_MASK_FOR_DEEP_SLEEP);
     if(bDeepSleep)
     {
+    	/* Not waking up on SHT DIO line from deep sleep as SHT is to be disabled during deep sleep */
         vAHI_DioWakeEdge(0,APP_BUTTONS_DIO_MASK_FOR_DEEP_SLEEP);
-        vAHI_DioWakeEnable(APP_BUTTONS_DIO_MASK_FOR_DEEP_SLEEP,(1<<APP_BUTTONS_BUTTON_1));
+        vAHI_DioWakeEnable(APP_BUTTONS_DIO_MASK_FOR_DEEP_SLEEP,0);
     }
     else
     {
-        vAHI_DioWakeEdge(0,APP_BUTTONS_DIO_MASK);       /* Set the wake up DIO Edge - Falling Edge */
-        vAHI_DioWakeEnable(APP_BUTTONS_DIO_MASK,0);     /* Set the Wake up DIO Power Button */
+        //vAHI_DioWakeEdge(1<<DIO_SHT_ALERT,APP_BUTTONS_DIO_MASK);       /* Set the wake up DIO Edge - Falling Edge and SHT DIO line Edge - Rising Edge */
+        vAHI_DioWakeEdge(1<<DIO_SHT_ALERT,APP_BUTTONS_DIO_MASK|(1<<UART_RXD_DIO));       /* Set the wake up DIO Edge - Falling Edge and SHT DIO line Edge - Rising Edge */
+        //vAHI_DioWakeEnable(APP_BUTTONS_DIO_MASK|(1<<DIO_SHT_ALERT),0);     /* Set the Wake up DIO Power Button */
+        vAHI_DioWakeEnable(APP_BUTTONS_DIO_MASK|(1<<DIO_SHT_ALERT)|(1<<UART_RXD_DIO),0);     /* Set the Wake up DIO Power Button */
 
     }
 }
@@ -396,7 +424,7 @@ PRIVATE void APP_vInitialise(void)
     /* Initialise application */
     APP_vInitialiseNode();
 
-    vAHI_SiMasterConfigure(TRUE,FALSE,63);
+    sht3x_i2c_configure();
 }
 
 /****************************************************************************

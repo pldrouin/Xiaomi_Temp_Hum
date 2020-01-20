@@ -45,11 +45,11 @@
 #include "zps_gen.h"
 #include "ZTimer.h"
 #include "zcl.h"
-#include "zcl_options.h"
 #include "app_zcl_task.h"
 #include "base_device.h"
 #include "app_common.h"
 #include "app_main.h"
+#include "app_end_device_node.h"
 #include "zps_gen.h"
 #include "app_events.h"
 #include "GenericBoard.h"
@@ -129,6 +129,15 @@ PUBLIC void APP_ZCL_vInitialise(void)
     if (eZCL_Status != E_ZCL_SUCCESS)
     {
             DBG_vPrintf(TRACE_ZCL, "Error: eZHA_RegisterBaseDeviceEndPoint:%d\r\n", eZCL_Status);
+    }
+
+    eZCL_Status = eApp_ZCL_RegisterEndpoints();
+
+    if (eZCL_Status != E_ZCL_SUCCESS)
+    {
+    	DBG_vPrintf(TRACE_ZCL, "\nAPP_ZCL: Error: eApp_ZCL_RegisterEndpoints:%d\n", eZCL_Status);
+    } else {
+    	DBG_vPrintf(TRACE_ZCL, "\nAPP_ZCL: eApp_ZCL_RegisterEndpoints was successful!\n");
     }
 
     APP_vZCL_DeviceSpecific_Init();

@@ -35,12 +35,26 @@
 #ifndef APP_END_DEVICE_NODE_H_
 #define APP_END_DEVICE_NODE_H_
 
-#define END_DEVICE_SHT_VDD (13)
+/****************************************************************************/
+/***        Include Files                                                 ***/
+/****************************************************************************/
+#include "TemperatureMeasurement.h"
 
 /****************************************************************************/
 /***        Macro Definitions                                             ***/
 /****************************************************************************/
 #define NUMBER_DEVICE_TO_BE_DISCOVERED 8 // Should be same as Binding table size
+
+#define KEEP_ALIVE_FACTORY_NEW  (45)
+#define KEEP_ALIVETIME (10)
+#define FIND_AND_BIND_IME (182)
+#define DEEP_SLEEPTIME (10)
+#define SLEEP_DURATION_MS (10000)
+#define SLEEP_TIMER_TICKS_PER_MS (32)
+
+#define NEVER_DEEP_SLEEP   FALSE
+//#define NEVER_DEEP_SLEEP   TRUE
+#define ZCL_TICK_TIME           ZTIMER_TIME_MSEC(100)
 /****************************************************************************/
 /***        Type Definitions                                              ***/
 /****************************************************************************/
@@ -49,6 +63,7 @@
 /***        Exported Functions                                            ***/
 /****************************************************************************/
 
+teZCL_Status eApp_ZCL_RegisterEndpoints();
 PUBLIC void APP_vInitialiseNode(void);
 PUBLIC void APP_vFactoryResetRecords(void);
 PUBLIC void APP_cbTimerPoll(void *pvParam);
@@ -58,6 +73,10 @@ PUBLIC void APP_vStartUpHW(void);
 /***        External Variables                                            ***/
 /****************************************************************************/
 extern PUBLIC bool_t bDeepSleep;
+extern uint8 u8KeepAliveTime;
+extern uint8 u8DeepSleepTime;
+extern tsZCL_ClusterDefinition sCLD_TemperatureMeasurement;
+extern uint8 au8TemperatureMeasurementAttributeControlBits[];
 
 /****************************************************************************/
 /****************************************************************************/

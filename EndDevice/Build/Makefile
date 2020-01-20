@@ -180,7 +180,7 @@ CFLAGS += -DDEBUG_APP_BDB
 CFLAGS += -DDEBUG_APP_EVENT
 #CFLAGS += -DDEBUG_BDB
 CFLAGS += -DNXP_HARDWARE
-#CFLAGS += -DDEBUG_ZCL
+CFLAGS += -DDEBUG_ZCL
 CFLAGS +=  -DDEBUG_EXCEPTIONS
 #CFLAGS += -DDEBUG_CLD_IDENTIFY 
 #CFLAGS += -DDEBUG_CLD_ONOFF
@@ -195,7 +195,7 @@ CFLAGS += -DDEBUG_APP_BDB
 CFLAGS += -DDEBUG_SLEEP
 #CFLAGS += -DDEBUG_SERIAL
 CFLAGS += -DDEBUG_SI
-#CFLAGS += -DDEBUG_POLL_SLEEP
+CFLAGS += -DDEBUG_POLL_SLEEP
 endif
 
 CFLAGS += -D$(TARGET)
@@ -340,6 +340,8 @@ endif
 # You should not need to edit below this line
 
 ###############################################################################
+APP_CLUSTERS_HVAC_SRC                       ?= 1
+APP_CLUSTERS_MEASUREMENT_AND_SENSING_SRC	?= 1
 ###############################################################################
 # Configure for the selected chip or chip family
 

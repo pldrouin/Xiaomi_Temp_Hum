@@ -53,15 +53,6 @@
 #define TRACE_UART  TRUE
 #endif
 
-/* default to uart 0 */
-#ifndef UART
-#define UART E_AHI_UART_0
-#endif
-
-#if (UART != E_AHI_UART_0 && UART != E_AHI_UART_1)
-#error UART must be either 0 or 1
-#endif
-
 /* default BAUD rate 9600 */
 #ifndef UART_BAUD_RATE
 #define UART_BAUD_RATE        115200
@@ -71,12 +62,6 @@
 #define UART_DLM_OFFSET     0x04
 
 #if JENNIC_CHIP_FAMILY == JN513x
-
-#if (UART == E_AHI_UART_0)
-#define UART_START_ADR      0x30000000UL
-#elif (UART == E_AHI_UART_1)
-#define UART_START_ADR      0x40000000UL
-#endif
 
 #elif JENNIC_CHIP_FAMILY == JN514x
 

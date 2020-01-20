@@ -182,6 +182,7 @@ PUBLIC void APP_vMainLoop(void)
          * sleep if there are no activities in progress
          */
         PWRM_vManagePower();
+
     }
 }
 

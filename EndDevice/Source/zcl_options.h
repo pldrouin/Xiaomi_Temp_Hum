@@ -62,6 +62,14 @@
 #define ZCL_ATTRIBUTE_READ_SERVER_SUPPORTED
 #define ZCL_ATTRIBUTE_READ_CLIENT_SUPPORTED
 #define ZCL_ATTRIBUTE_WRITE_SERVER_SUPPORTED
+#define ZCL_ATTRIBUTE_REPORTING_SERVER_SUPPORTED
+#define ZCL_CONFIGURE_ATTRIBUTE_REPORTING_SERVER_SUPPORTED
+#define ZCL_READ_ATTRIBUTE_REPORTING_CONFIGURATION_SERVER_SUPPORTED
+
+/* Only one reportable attribute : MeasuredValue */
+#define ZCL_NUMBER_OF_REPORTS     1
+#define ZLO_MIN_REPORT_INTERVAL   1
+#define ZLO_MAX_REPORT_INTERVAL   0x3d
 
 /* Enable wild card profile */
 #define ZCL_ALLOW_WILD_CARD_PROFILE
@@ -87,6 +95,10 @@
 
 #define CLD_LEVEL_CONTROL
 #define LEVEL_CONTROL_CLIENT
+
+#define CLD_TEMPERATURE_MEASUREMENT
+#define TEMPERATURE_MEASUREMENT_SERVER
+#define CLD_TEMPMEAS_ATTR_ID_ATTRIBUTE_REPORTING_STATUS
 /****************************************************************************/
 /*             Basic Cluster - Optional Attributes                          */
 /*                                                                          */

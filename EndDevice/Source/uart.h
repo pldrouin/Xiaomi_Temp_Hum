@@ -36,6 +36,23 @@
 #ifndef  UART_H_INCLUDED
 #define  UART_H_INCLUDED
 
+/* default to uart 0 */
+#ifndef UART
+#define UART E_AHI_UART_0
+#endif
+
+#if (UART != E_AHI_UART_0 && UART != E_AHI_UART_1)
+#error UART must be either 0 or 1
+#endif
+
+#if (UART == E_AHI_UART_0)
+#define UART_START_ADR      0x30000000UL
+#define UART_RXD_DIO	(7)
+#elif (UART == E_AHI_UART_1)
+#define UART_START_ADR      0x40000000UL
+#define UART_RXD_DIO	(15)
+#endif
+
 #if defined __cplusplus
 extern "C" {
 #endif

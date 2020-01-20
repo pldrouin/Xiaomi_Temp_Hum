@@ -13,6 +13,10 @@
     #define TRACE_SI      FALSE
 #endif
 
+#define SHT3X_ADDR	(0x44)
+
+bool_t sht3x_alert=FALSE;
+
 static const uint8_t crc8_table[] = {
   0, 0x31, 0x62, 0x53, 0xC4, 0xF5, 0xA6, 0x97, 0xB9,
   0x88, 0xDB, 0xEA, 0x7D, 0x4C, 0x1F, 0x2E, 0x43, 0x72,
@@ -45,6 +49,45 @@ static const uint8_t crc8_table[] = {
   0xFF, 0xCE, 0x9D, 0xAC
 };
 
+void sht3x_initialise()
+{
+	/* Set DIO pin connected to SHT3X VDD pin as an output */
+	vAHI_DioSetDirection(0, 1<<DIO_SHT_VDD);
+
+	/* Set SHT ALERT DIO line to input */
+	vAHI_DioSetDirection(1<<DIO_SHT_ALERT, 0);
+
+	/* Turn off pull-up for SHT ALERT DIO line */
+	vAHI_DioSetPullup(0, 1<<DIO_SHT_ALERT);
+
+	/* Set the edge detection for rising edge */
+	//vAHI_DioInterruptEdge(1<<DIO_SHT_ALERT, 0);
+
+	/* Enable interrupt to occur on selected edge */
+	//vAHI_DioInterruptEnable(1<<DIO_SHT_ALERT, 0);
+}
+
+bool_t sht3x_i2c_configure()
+{
+	if(u32AHI_DioReadInput() & (1<<DIO_SHT_VDD)) {
+		vAHI_SiMasterConfigure(TRUE,FALSE,63);
+
+		while(sht3x_send_command(0x20,0x32,FALSE)){}
+		return TRUE;
+
+	} else return FALSE;
+}
+
+
+bool_t sht3x_i2c_disable()
+{
+	if(u32AHI_DioReadInput() & (1<<DIO_SHT_VDD)) {
+			vAHI_SiMasterDisable();
+			return TRUE;
+
+	} else return FALSE;
+}
+
 void crc8_update(uint8_t* crc, const uint8_t byte)
 {
 	*crc = crc8_table[*crc ^ byte];
@@ -54,7 +97,7 @@ int sht3x_transfer_wait(bool_t stop_on_nack)
 {
 	//Wait for the transfer to be completed
 	while(bAHI_SiMasterPollTransferInProgress()) {
-		DBG_vPrintf(TRACE_SI, "Transfer in progress...\n");
+		//DBG_vPrintf(TRACE_SI, "Transfer in progress...\n");
 	}
 
 	//Check for NACK
@@ -76,7 +119,7 @@ int sht3x_transfer_wait(bool_t stop_on_nack)
 
 bool_t sht3x_read_value(uint16_t* value, bool_t last)
 {
-	DBG_vPrintf(TRACE_SI, "Reading MSB\n");
+	//DBG_vPrintf(TRACE_SI, "Reading MSB\n");
 
 	do {
 		bAHI_SiMasterSetCmdReg(FALSE, FALSE, TRUE, FALSE, FALSE, FALSE);
@@ -89,7 +132,7 @@ bool_t sht3x_read_value(uint16_t* value, bool_t last)
 	crc8_init(&crc);
 	crc8_update(&crc, byte);
 
-	DBG_vPrintf(TRACE_SI, "Reading LSB\n");
+	//DBG_vPrintf(TRACE_SI, "Reading LSB\n");
 
 	do {
 		bAHI_SiMasterSetCmdReg(FALSE, FALSE, TRUE, FALSE, FALSE, FALSE);
@@ -113,38 +156,140 @@ bool_t sht3x_read_value(uint16_t* value, bool_t last)
 	return FALSE;
 }
 
-int sht3x_get_measurements(uint16_t* temp, uint16_t* hum)
+int sht3x_send_command(uint8_t msb, uint8_t lsb, bool_t stopafterlsb)
 {
-	vAHI_SiMasterWriteSlaveAddr(0x44, FALSE);
+	DBG_vPrintf(TRACE_SI, "Sending command 0x%02x%02x\n",msb,lsb);
+	vAHI_SiMasterWriteSlaveAddr(SHT3X_ADDR, FALSE);
 	//Send the Start command, followed by the 7-bit address and the write command
 	bAHI_SiMasterSetCmdReg(TRUE, FALSE, FALSE, TRUE, FALSE, FALSE);
 
 	if(!sht3x_transfer_wait(FALSE)) {
 		//Write command MSB to buffer
-		DBG_vPrintf(TRACE_SI, "Writing MSB\n");
-		vAHI_SiMasterWriteData8(0x24);
+		//DBG_vPrintf(TRACE_SI, "Writing MSB\n");
+		vAHI_SiMasterWriteData8(msb);
 		bAHI_SiMasterSetCmdReg(FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
 
 		if(!sht3x_transfer_wait(FALSE)) {
 			//Write command LSB to buffer
-			DBG_vPrintf(TRACE_SI, "Writing LSB\n");
-			vAHI_SiMasterWriteData8(0x00);
-			bAHI_SiMasterSetCmdReg(FALSE, TRUE, FALSE, TRUE, FALSE, FALSE);
+			//DBG_vPrintf(TRACE_SI, "Writing LSB\n");
+			vAHI_SiMasterWriteData8(lsb);
+			bAHI_SiMasterSetCmdReg(FALSE, stopafterlsb, FALSE, TRUE, FALSE, FALSE);
+
+			if(!sht3x_transfer_wait(FALSE)) return 0;
+		}
+	}
+	return -1;
+}
+
+int sht3x_write_alert_limit(uint8_t lsb, uint16_t hum, uint16_t temp)
+{
+	uint16_t buf=(hum&65024)|(temp>>7);
+	uint8_t byte;
+	uint8_t crc;
+	DBG_vPrintf(TRACE_SI, "Write alert with 0x%04x 0x%04x reduced to 0x%04x\n",temp,hum,buf);
+
+	if(!sht3x_send_command(0x61,lsb,FALSE)) {
+		byte=(uint8_t)(buf>>8);
+		vAHI_SiMasterWriteData8(byte);
+		crc8_init(&crc);
+		crc8_update(&crc, byte);
+		bAHI_SiMasterSetCmdReg(FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+
+		if(!sht3x_transfer_wait(FALSE)) {
+			byte=(uint8_t)buf;
+			vAHI_SiMasterWriteData8(byte);
+			crc8_update(&crc, byte);
+			bAHI_SiMasterSetCmdReg(FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
 
 			if(!sht3x_transfer_wait(FALSE)) {
+				vAHI_SiMasterWriteData8(crc);
+				bAHI_SiMasterSetCmdReg(FALSE, TRUE, FALSE, TRUE, FALSE, FALSE);
 
-				do {
-					DBG_vPrintf(TRACE_SI, "Adressing slave to read data\n");
-					vAHI_SiMasterWriteSlaveAddr(0x44, TRUE);
-					bAHI_SiMasterSetCmdReg(TRUE, FALSE, FALSE, TRUE, FALSE, FALSE);
-				} while(sht3x_transfer_wait(TRUE));
-
-				DBG_vPrintf(TRACE_SI, "Ready to read data\n");
-
-
-				if(sht3x_read_value(temp, FALSE) && sht3x_read_value(hum, TRUE)) return 0;
+				if(!sht3x_transfer_wait(FALSE)) return 0;
 			}
 		}
 	}
+	return -1;
+}
+
+int sht3x_read_single_value(uint8_t msb, uint8_t lsb, uint16_t* value)
+{
+	if(!sht3x_send_command(msb,lsb,FALSE)) {
+
+		do {
+			DBG_vPrintf(TRACE_SI, "Adressing slave to read data\n");
+			vAHI_SiMasterWriteSlaveAddr(SHT3X_ADDR, TRUE);
+			bAHI_SiMasterSetCmdReg(TRUE, FALSE, FALSE, TRUE, FALSE, FALSE);
+		} while(sht3x_transfer_wait(TRUE));
+
+		DBG_vPrintf(TRACE_SI, "Ready to read data\n");
+
+		if(sht3x_read_value(value, TRUE)) return 0;
+	}
+	return -1;
+}
+
+
+int sht3x_read_two_values(uint8_t msb, uint8_t lsb, uint16_t* value0, uint16_t* value1)
+{
+	if(!sht3x_send_command(msb,lsb,FALSE)) {
+
+		do {
+			DBG_vPrintf(TRACE_SI, "Adressing slave to read data\n");
+			vAHI_SiMasterWriteSlaveAddr(SHT3X_ADDR, TRUE);
+			bAHI_SiMasterSetCmdReg(TRUE, FALSE, FALSE, TRUE, FALSE, FALSE);
+		} while(sht3x_transfer_wait(TRUE));
+
+		DBG_vPrintf(TRACE_SI, "Ready to read data\n");
+
+		if(sht3x_read_value(value0, FALSE) && sht3x_read_value(value1, TRUE)) return 0;
+	}
+	return -1;
+}
+
+int sht3x_get_measurements(uint16_t* temp, uint16_t* hum)
+{
+	if(!sht3x_read_two_values(0xE0,0x00,temp,hum)) {
+		DBG_vPrintf(TRACE_SI, "Read values are 0x%04x 0x%04x\n",*temp,*hum);
+
+		//if(!sht3x_send_command(0x30,0x93,TRUE)) {
+
+			if(!sht3x_write_alert_limit(0x16, *hum, *temp) &&
+					!sht3x_write_alert_limit(0x0B, *hum, *temp) &&
+					!sht3x_write_alert_limit(0x1D, *hum+1024, *temp+128) && //Minimum for hum is 512, temp is 128
+					!sht3x_write_alert_limit(0x00, *hum-1024, *temp-128)) {
+
+				while(sht3x_i2c_clear_alerts());
+
+				while(sht3x_send_command(0x20,0x32,FALSE)){};
+
+				/*uint16_t hs, hc, ls, lc;
+				if(!sht3x_read_alert_high_set(&hs))	DBG_vPrintf(TRUE, "Alert high set is 0x%04x\n",hs);
+				if(!sht3x_read_alert_high_clear(&hc))	DBG_vPrintf(TRUE, "Alert high clear is 0x%04x\n",hc);
+				if(!sht3x_read_alert_low_clear(&ls))	DBG_vPrintf(TRUE, "Alert low clear is 0x%04x\n",ls);
+				if(!sht3x_read_alert_low_set(&lc))		DBG_vPrintf(TRUE, "Alert low set is 0x%04x\n",lc);*/
+
+				tsZCL_Address destaddr={E_ZCL_AM_SHORT, {0x0000}};
+
+				PDUM_thAPduInstance hAPduInst = PDUM_hAPduAllocateAPduInstance(apduZCL);
+
+				if(hAPduInst != PDUM_INVALID_HANDLE) {
+
+					PDUM_eAPduInstanceSetPayloadSize(hAPduInst, 0);
+					uint16 written=PDUM_u16APduInstanceWriteNBO(hAPduInst,0,"bh",0x29,*temp*17500/65535-4500);
+
+					teZCL_Status status=eZCL_SetReportableFlag(0x01, MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT, TRUE, FALSE, 0x0000);
+					DBG_vPrintf(TRACE_SI, "Status is %u\n",status);
+					status=eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst);
+					DBG_vPrintf(TRACE_SI, "Status is %u, written is %u\n",status,written);
+					PDUM_eAPduFreeAPduInstance(hAPduInst);
+				}
+				return 0;
+			}
+		//}
+
+	}
+
+	//while(sht3x_send_command(0x20,0x32,FALSE)){};
 	return -1;
 }

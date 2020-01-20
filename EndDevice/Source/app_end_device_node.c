@@ -55,6 +55,7 @@
 #include "app_common.h"
 #include "app_main.h"
 #include "app_buttons.h"
+#include "app_sht3x.h"
 #include "ZTimer.h"
 #include "app_events.h"
 #include <rnd_pub.h>
@@ -106,16 +107,7 @@
     #define TRACE_POLL_SLEEP   FALSE
 #endif
 
-#define KEEP_ALIVE_FACTORY_NEW  (45)
-#define KEEP_ALIVETIME (10)
-#define FIND_AND_BIND_IME (182)
-#define DEEP_SLEEPTIME (10)
-#define SLEEP_DURATION_MS (1000)
-#define SLEEP_TIMER_TICKS_PER_MS (32)
 
-//#define NEVER_DEEP_SLEEP   FALSE
-#define NEVER_DEEP_SLEEP   TRUE
-#define ZCL_TICK_TIME           ZTIMER_TIME_MSEC(100)
 /****************************************************************************/
 /***        Type Definitions                                              ***/
 /****************************************************************************/
@@ -141,7 +133,10 @@ PRIVATE void APP_vSetICDerivedLinkKey(void);
 /***        Exported Variables                                            ***/
 /****************************************************************************/
 PUBLIC bool_t bDeepSleep;
-
+PUBLIC uint8 u8KeepAliveTime = KEEP_ALIVETIME;
+PUBLIC uint8 u8DeepSleepTime = DEEP_SLEEPTIME;
+tsZCL_ClusterInstance sTCluster;
+tsCLD_TemperatureMeasurement sTMeasurement;
 
 /****************************************************************************/
 /***        Local Variables                                               ***/
@@ -149,21 +144,38 @@ PUBLIC bool_t bDeepSleep;
 
 PRIVATE teNodeState eNodeState;
 PRIVATE uint16 u16FastPoll;
-PRIVATE uint8 u8KeepAliveTime = KEEP_ALIVETIME;
-PRIVATE uint8 u8DeepSleepTime = DEEP_SLEEPTIME;
 PRIVATE bool_t bBDBJoinFailed = FALSE;
 PRIVATE bool_t bFailToJoin = FALSE;
-//PRIVATE pwrm_tsWakeTimerEvent    sWake;
+PRIVATE pwrm_tsWakeTimerEvent    sWake;
 PRIVATE bool_t bFnBInProgress = FALSE;
 /****************************************************************************/
 /***        Exported Functions                                            ***/
 /****************************************************************************/
 
 #ifdef PDM_EEPROM
-    extern uint8 u8PDM_CalculateFileSystemCapacity();
-    extern uint8 u8PDM_GetFileSystemOccupancy();
+extern uint8 u8PDM_CalculateFileSystemCapacity();
+extern uint8 u8PDM_GetFileSystemOccupancy();
 #endif
 
+/****************************************************************************
+ *
+ * NAME: eApp_ZCL_RegisterEndpoint
+ *
+ * DESCRIPTION:
+ * Register ZLO endpoints
+ *
+ * PARAMETER
+ * Type                        Name                  Descirption
+ * tfpZCL_ZCLCallBackFunction  fptr                  Pointer to ZCL Callback function
+ *
+ * RETURNS:
+ * teZCL_Status
+ *
+ ****************************************************************************/
+teZCL_Status eApp_ZCL_RegisterEndpoints()
+{
+	return eCLD_TemperatureMeasurementCreateTemperatureMeasurement(&sTCluster, TRUE, &sCLD_TemperatureMeasurement, &sTMeasurement, au8TemperatureMeasurementAttributeControlBits);
+}
 
 
 /****************************************************************************
@@ -183,7 +195,7 @@ PUBLIC void APP_vInitialiseNode(void)
 
     APP_bButtonInitialise();
 
-    vAHI_DioSetDirection(0, 1<<END_DEVICE_SHT_VDD);
+    sht3x_initialise();
 
     eNodeState = E_STARTUP;
     PDM_eReadDataFromRecord(PDM_ID_APP_END_DEVICE,
@@ -370,6 +382,17 @@ PUBLIC void APP_vBdbCallback(BDB_tsBdbEvent *psBdbEvent)
  ****************************************************************************/
 PUBLIC void APP_taskEndDevice(void)
 {
+    if(sht3x_alert) {
+    	DBG_vPrintf(TRUE, "\nSHT ALERT!\n");
+    	uint16_t status;
+
+    	if(!sht3x_read_status(&status))	DBG_vPrintf(TRUE, "Status is 0x%04x\n",status);
+    	uint16_t temp, hum;
+    	while(sht3x_get_measurements(&temp, &hum)){}
+    	DBG_vPrintf(TRUE, "Values are %i/100 C, %i/100 %%\n",((uint32_t)(temp)*17500)/65535-4500,((uint32_t)hum)*10000/65535);
+    	sht3x_alert=FALSE;
+    }
+
     APP_tsEvent sAppEvent;
     sAppEvent.eType = APP_E_EVENT_NONE;
     BDB_teStatus eStatus;
@@ -756,7 +779,7 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
         case E_STARTUP:
             u32Time = NETWORK_RESTART_TIME;
             DBG_vPrintf(TRACE_POLL_SLEEP, "Poll Sleep Not Running Keep Alive %d\n", u8KeepAliveTime);
-/*
+
             if ((u8KeepAliveTime--) == 0)
             {
                 DBG_vPrintf(TRACE_POLL_SLEEP, "Go Deep...\n");
@@ -766,8 +789,6 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
                 return;
 
             }
-*/
-	    if(u8KeepAliveTime > 0) u8KeepAliveTime--;
             break;
 
         case E_RUNNING:
@@ -780,7 +801,6 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
                 /* Manage rejoin attempts,then short wait, then deep sleep */
                 u32Time = ZTIMER_TIME_MSEC(1000);
 
-/*
                 if (u8DeepSleepTime)
                 {
                     u8DeepSleepTime--;
@@ -793,7 +813,6 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
                     bDeepSleep = TRUE;
                     return;
                 }
-*/
 
             }
             else
@@ -807,26 +826,29 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
                 /* Manage polling, then warm sleep, then deep sleep */
                 if(u8KeepAliveTime == 0)
                 {
-/*
-                    vStopAllTimers();
-                    if (u8DeepSleepTime)
-                    {
-                       uint8 u8Status;
-                        u8Status = PWRM_eScheduleActivity(&sWake, (SLEEP_DURATION_MS * SLEEP_TIMER_TICKS_PER_MS) , vWakeCallBack);
-                       DBG_vPrintf(TRACE_POLL_SLEEP, "poll task: schedule sleep status %02x\n",
-                               u8Status );
-                    }
 
-                    else
-                    {
-                        PWRM_vInit(E_AHI_SLEEP_DEEP);
-                        bDeepSleep = TRUE;
-                        DBG_vPrintf(TRACE_POLL_SLEEP, "poll task: go deep\n");
-                    }
+                	if(!sht3x_alert) {
+
+                		vStopAllTimers();
+                		//if (u8DeepSleepTime)
+                		//{
+                			uint8 u8Status;
+                			u8Status = PWRM_eScheduleActivity(&sWake, (SLEEP_DURATION_MS * SLEEP_TIMER_TICKS_PER_MS) , vWakeCallBack);
+                			DBG_vPrintf(TRACE_POLL_SLEEP, "poll task: schedule sleep status %02x\n",
+                					u8Status );
+                		/*}
+
+                		else
+                		{
+                			PWRM_vInit(E_AHI_SLEEP_DEEP);
+                			bDeepSleep = TRUE;
+                			DBG_vPrintf(TRACE_POLL_SLEEP, "poll task: go deep\n");
+                		}*/
+                	}
 
                     DBG_vPrintf(TRACE_POLL_SLEEP,"Activity %d\n",PWRM_u16GetActivityCount());
                     return;
-*/
+
                 }
                 else
                 {
