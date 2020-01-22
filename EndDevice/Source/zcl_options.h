@@ -95,7 +95,9 @@
 
 #define CLD_TEMPERATURE_MEASUREMENT
 #define TEMPERATURE_MEASUREMENT_SERVER
-#define CLD_TEMPMEAS_ATTR_ID_ATTRIBUTE_REPORTING_STATUS
+
+#define CLD_RELATIVE_HUMIDITY_MEASUREMENT
+#define RELATIVE_HUMIDITY_MEASUREMENT_SERVER
 /****************************************************************************/
 /*             Basic Cluster - Optional Attributes                          */
 /*                                                                          */

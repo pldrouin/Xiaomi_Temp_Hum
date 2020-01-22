@@ -275,11 +275,13 @@ int sht3x_get_measurements(uint16_t* temp, uint16_t* hum)
 
 				if(hAPduInst != PDUM_INVALID_HANDLE) {
 
-					sTemperatureSensorDevice.sTemperatureMeasurementServerCluster.i16MeasuredValue=*temp*17500/65535-4500;
+					sThermostatDevice.sTemperatureMeasurementServerCluster.i16MeasuredValue=*temp*17500/65535-4500;
+					sThermostatDevice.sRelativeHumidityMeasurementServerCluster.u16MeasuredValue=*hum*10000/65535;
 					//PDUM_eAPduInstanceSetPayloadSize(hAPduInst, 0);
 
 					//teZCL_Status status=
 					eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst);
+					eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_RELATIVE_HUMIDITY_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst);
 					//DBG_vPrintf(TRACE_SI, "Status is %u\n",status);
 					PDUM_eAPduFreeAPduInstance(hAPduInst);
 				}

@@ -4,7 +4,7 @@
  *
  * COMPONENT:          app_zcl_task.h
  *
- * DESCRIPTION:        TemperatureSensor Device application: ZCL Interface
+ * DESCRIPTION:        Thermostat Device application: ZCL Interface
  *
  ****************************************************************************
  *
@@ -55,7 +55,7 @@
 
 #include <jendefs.h>
 #include "zcl.h"
-#include "temperature_sensor.h"
+#include "thermostat_device.h"
 
 /****************************************************************************/
 /***        Macro Definitions                                             ***/
@@ -78,7 +78,7 @@ PUBLIC void APP_cbTimerZclTick(void *pvParam);
 /****************************************************************************/
 /***        Exported Variables                                            ***/
 /****************************************************************************/
-extern tsHA_TemperatureSensorDevice sTemperatureSensorDevice;
+extern tsHA_ThermostatDevice sThermostatDevice;
 
 #endif /* APP_ZCL_TASK_H_ */
 

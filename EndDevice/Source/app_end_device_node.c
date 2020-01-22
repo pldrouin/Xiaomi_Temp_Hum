@@ -4,7 +4,7 @@
  *
  * COMPONENT:          app_end_device_node.c
  *
- * DESCRIPTION:        TemperatureSensor Device Demo: End Device Application
+ * DESCRIPTION:        Thermostat Device Demo: End Device Application
  *
  ****************************************************************************
  *

@@ -4,7 +4,7 @@
  *
  * COMPONENT:          app_end_device_node.h
  *
- * DESCRIPTION:        TemperatureSensor Device Demo: End Device Application
+ * DESCRIPTION:        Thermostat Device Demo: End Device Application
  *
  ****************************************************************************
  *
@@ -38,7 +38,6 @@
 /****************************************************************************/
 /***        Include Files                                                 ***/
 /****************************************************************************/
-#include "TemperatureMeasurement.h"
 #include "zcl_options.h"
 
 /****************************************************************************/
@@ -64,8 +63,6 @@
 /****************************************************************************/
 /***        Exported Functions                                            ***/
 /****************************************************************************/
-
-teZCL_Status eApp_ZCL_RegisterEndpoints();
 PUBLIC void APP_vInitialiseNode(void);
 PUBLIC void APP_vFactoryResetRecords(void);
 PUBLIC void APP_cbTimerPoll(void *pvParam);
@@ -77,8 +74,6 @@ PUBLIC void APP_vStartUpHW(void);
 extern PUBLIC bool_t bDeepSleep;
 extern uint8 u8KeepAliveTime;
 extern uint8 u8DeepSleepTime;
-extern tsZCL_ClusterDefinition sCLD_TemperatureMeasurement;
-extern uint8 au8TemperatureMeasurementAttributeControlBits[];
 /****************************************************************************/
 /****************************************************************************/
 /****************************************************************************/
