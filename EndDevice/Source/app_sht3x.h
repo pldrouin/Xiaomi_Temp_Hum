@@ -16,7 +16,7 @@
 #include "pdum_gen.h"
 #include "zcl_options.h"
 #include "zcl_common.h"
-#include "TemperatureMeasurement.h"
+#include "app_zcl_task.h"
 #include "AppHardwareApi.h"
 #include "dbg.h"
 

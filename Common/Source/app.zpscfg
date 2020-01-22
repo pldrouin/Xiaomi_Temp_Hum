@@ -714,13 +714,11 @@
       <InputClusters Cluster="Basic" RxAPDU="EndDevice->apduZCL" Discoverable="true"/>
       <InputClusters Cluster="Groups" RxAPDU="EndDevice->apduZCL" Discoverable="false"/>
       <InputClusters Cluster="Identify" RxAPDU="EndDevice->apduZCL" Discoverable="true"/>
-      <InputClusters Cluster="OnOff" RxAPDU="EndDevice->apduZCL" Discoverable="false"/>
       <InputClusters Cluster="TemperatureMeasurement" RxAPDU="EndDevice->apduZCL" Discoverable="true"/>
       <InputClusters Cluster="Default" RxAPDU="EndDevice->apduZCL" Discoverable="false"/>
       <OutputClusters Cluster="Basic" TxAPDUs="EndDevice->apduZCL" Discoverable="true"/>
       <OutputClusters Cluster="Groups" TxAPDUs="EndDevice->apduZCL" Discoverable="true"/>
       <OutputClusters Cluster="Identify" TxAPDUs="EndDevice->apduZCL" Discoverable="true"/>
-      <OutputClusters Cluster="OnOff" TxAPDUs="EndDevice->apduZCL" Discoverable="true"/>
       <OutputClusters Cluster="TemperatureMeasurement" TxAPDUs="EndDevice->apduZCL" Discoverable="true"/>
     </Endpoints>
     <PDUConfiguration NumNPDUs="24" PDUMMutexName="">

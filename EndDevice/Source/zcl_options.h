@@ -90,9 +90,6 @@
 #define CLD_GROUPS
 #define GROUPS_CLIENT
 
-#define CLD_ONOFF
-#define ONOFF_CLIENT
-
 #define CLD_LEVEL_CONTROL
 #define LEVEL_CONTROL_CLIENT
 

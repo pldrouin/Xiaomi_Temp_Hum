@@ -275,13 +275,11 @@ int sht3x_get_measurements(uint16_t* temp, uint16_t* hum)
 
 				if(hAPduInst != PDUM_INVALID_HANDLE) {
 
-					PDUM_eAPduInstanceSetPayloadSize(hAPduInst, 0);
-					uint16 written=PDUM_u16APduInstanceWriteNBO(hAPduInst,0,"bh",0x29,*temp*17500/65535-4500);
+					sTemperatureSensorDevice.sTemperatureMeasurementServerCluster.i16MeasuredValue=*temp*17500/65535-4500;
+					//PDUM_eAPduInstanceSetPayloadSize(hAPduInst, 0);
 
-					teZCL_Status status=eZCL_SetReportableFlag(0x01, MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT, TRUE, FALSE, 0x0000);
+					teZCL_Status status=eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst);
 					DBG_vPrintf(TRACE_SI, "Status is %u\n",status);
-					status=eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst);
-					DBG_vPrintf(TRACE_SI, "Status is %u, written is %u\n",status,written);
 					PDUM_eAPduFreeAPduInstance(hAPduInst);
 				}
 				return 0;

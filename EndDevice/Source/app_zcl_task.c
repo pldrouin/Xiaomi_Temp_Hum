@@ -4,7 +4,7 @@
  *
  * COMPONENT:          app_zcl_task.c
  *
- * DESCRIPTION:        Base Device application: ZCL Interface
+ * DESCRIPTION:        TemperatureSensor Device application: ZCL Interface
  *
  ****************************************************************************
  *
@@ -46,7 +46,7 @@
 #include "ZTimer.h"
 #include "zcl.h"
 #include "app_zcl_task.h"
-#include "base_device.h"
+#include "temperature_sensor.h"
 #include "app_common.h"
 #include "app_main.h"
 #include "app_end_device_node.h"
@@ -88,7 +88,7 @@ PRIVATE void vHandleIdentifyRequest(uint16 u16Duration);
 /****************************************************************************/
 /***        Exported Variables                                            ***/
 /****************************************************************************/
-tsZHA_BaseDevice sBaseDevice;
+tsHA_TemperatureSensorDevice sTemperatureSensorDevice;
 
 /****************************************************************************/
 /***        Local Variables                                               ***/
@@ -123,21 +123,12 @@ PUBLIC void APP_ZCL_vInitialise(void)
     }
 
     //eZCL_Status = eApp_ZLO_RegisterEndpoint(&APP_ZCL_cbEndpointCallback);
-    eZCL_Status =  eZHA_RegisterBaseDeviceEndPoint(ENDDEVICE_APPLICATION_ENDPOINT,
+    eZCL_Status =  eHA_RegisterTemperatureSensorEndPoint(ENDDEVICE_APPLICATION_ENDPOINT,
                                                          &APP_ZCL_cbEndpointCallback,
-                                                         &sBaseDevice);
+                                                         &sTemperatureSensorDevice);
     if (eZCL_Status != E_ZCL_SUCCESS)
     {
-            DBG_vPrintf(TRACE_ZCL, "Error: eZHA_RegisterBaseDeviceEndPoint:%d\r\n", eZCL_Status);
-    }
-
-    eZCL_Status = eApp_ZCL_RegisterEndpoints();
-
-    if (eZCL_Status != E_ZCL_SUCCESS)
-    {
-    	DBG_vPrintf(TRACE_ZCL, "\nAPP_ZCL: Error: eApp_ZCL_RegisterEndpoints:%d\n", eZCL_Status);
-    } else {
-    	DBG_vPrintf(TRACE_ZCL, "\nAPP_ZCL: eApp_ZCL_RegisterEndpoints was successful!\n");
+            DBG_vPrintf(TRACE_ZCL, "Error: eHA_RegisterTemperatureSensorEndPoint:%d\r\n", eZCL_Status);
     }
 
     APP_vZCL_DeviceSpecific_Init();
@@ -157,7 +148,7 @@ PUBLIC void APP_ZCL_vInitialise(void)
  ****************************************************************************/
 PUBLIC void APP_ZCL_vSetIdentifyTime(uint16 u16Time)
 {
-    sBaseDevice.sIdentifyServerCluster.u16IdentifyTime = u16Time;
+    sTemperatureSensorDevice.sIdentifyServerCluster.u16IdentifyTime = u16Time;
 }
 
 
@@ -354,11 +345,18 @@ PRIVATE void APP_vHandleClusterCustomCommands(tsZCL_CallBackEvent *psEvent)
             if (psCallBackMessage->u8CommandId == E_CLD_BASIC_CMD_RESET_TO_FACTORY_DEFAULTS )
             {
                 DBG_vPrintf(TRACE_ZCL, "Basic Factory Reset Received\n");
-                memset(&sBaseDevice,0,sizeof(tsZHA_BaseDevice));
+                memset(&sTemperatureSensorDevice,0,sizeof(tsHA_TemperatureSensorDevice));
                 APP_vZCL_DeviceSpecific_Init();
-                eZHA_RegisterBaseDeviceEndPoint(ENDDEVICE_APPLICATION_ENDPOINT,
-                                                &APP_ZCL_cbEndpointCallback,
-                                                &sBaseDevice);
+
+                teZCL_Status eZCL_Status;
+
+                eZCL_Status =  eHA_RegisterTemperatureSensorEndPoint(ENDDEVICE_APPLICATION_ENDPOINT,
+                		&APP_ZCL_cbEndpointCallback,
+                		&sTemperatureSensorDevice);
+                if (eZCL_Status != E_ZCL_SUCCESS)
+                {
+                	DBG_vPrintf(TRACE_ZCL, "Error: eHA_RegisterTemperatureSensorEndPoint:%d\r\n", eZCL_Status);
+                }
             }
         }
         break;
@@ -381,7 +379,7 @@ PRIVATE void APP_vHandleClusterCustomCommands(tsZCL_CallBackEvent *psEvent)
                 // Server Side
                 if (psCallBackMessage->u8CommandId == E_CLD_IDENTIFY_CMD_IDENTIFY)
                 {
-                    vHandleIdentifyRequest(sBaseDevice.sIdentifyServerCluster.u16IdentifyTime);
+                    vHandleIdentifyRequest(sTemperatureSensorDevice.sIdentifyServerCluster.u16IdentifyTime);
                 }
                 else if (psCallBackMessage->u8CommandId == E_CLD_IDENTIFY_CMD_TRIGGER_EFFECT)
                 {
@@ -440,10 +438,10 @@ PRIVATE void APP_vHandleClusterUpdate(tsZCL_CallBackEvent *psEvent)
  ****************************************************************************/
 PRIVATE void APP_vZCL_DeviceSpecific_Init(void)
 {
-    memcpy(sBaseDevice.sBasicServerCluster.au8ManufacturerName, "NXP", CLD_BAS_MANUF_NAME_SIZE);
-    memcpy(sBaseDevice.sBasicServerCluster.au8ModelIdentifier, "BDB-EndDevice", CLD_BAS_MODEL_ID_SIZE);
-    memcpy(sBaseDevice.sBasicServerCluster.au8DateCode, "20150212", CLD_BAS_DATE_SIZE);
-    memcpy(sBaseDevice.sBasicServerCluster.au8SWBuildID, "1000-0001", CLD_BAS_SW_BUILD_SIZE);
+    memcpy(sTemperatureSensorDevice.sBasicServerCluster.au8ManufacturerName, "NXP", CLD_BAS_MANUF_NAME_SIZE);
+    memcpy(sTemperatureSensorDevice.sBasicServerCluster.au8ModelIdentifier, "BDB-EndDevice", CLD_BAS_MODEL_ID_SIZE);
+    memcpy(sTemperatureSensorDevice.sBasicServerCluster.au8DateCode, "20150212", CLD_BAS_DATE_SIZE);
+    memcpy(sTemperatureSensorDevice.sBasicServerCluster.au8SWBuildID, "1000-0001", CLD_BAS_SW_BUILD_SIZE);
 }
 
 /****************************************************************************
@@ -462,27 +460,27 @@ PRIVATE void vStartEffect(uint8 u8Effect)
 {
     switch (u8Effect) {
         case E_CLD_IDENTIFY_EFFECT_BLINK:
-            sBaseDevice.sIdentifyServerCluster.u16IdentifyTime = 2;
+            sTemperatureSensorDevice.sIdentifyServerCluster.u16IdentifyTime = 2;
             break;
 
         case E_CLD_IDENTIFY_EFFECT_BREATHE:
-            sBaseDevice.sIdentifyServerCluster.u16IdentifyTime = 17;
+            sTemperatureSensorDevice.sIdentifyServerCluster.u16IdentifyTime = 17;
             break;
 
         case E_CLD_IDENTIFY_EFFECT_OKAY:
-            sBaseDevice.sIdentifyServerCluster.u16IdentifyTime = 3;
+            sTemperatureSensorDevice.sIdentifyServerCluster.u16IdentifyTime = 3;
             break;
 
         case E_CLD_IDENTIFY_EFFECT_CHANNEL_CHANGE:
-            sBaseDevice.sIdentifyServerCluster.u16IdentifyTime = 9;
+            sTemperatureSensorDevice.sIdentifyServerCluster.u16IdentifyTime = 9;
             break;
 
         case E_CLD_IDENTIFY_EFFECT_FINISH_EFFECT:
         case E_CLD_IDENTIFY_EFFECT_STOP_EFFECT:
-            sBaseDevice.sIdentifyServerCluster.u16IdentifyTime = 1;
+            sTemperatureSensorDevice.sIdentifyServerCluster.u16IdentifyTime = 1;
             break;
     }
-    vHandleIdentifyRequest( sBaseDevice.sIdentifyServerCluster.u16IdentifyTime);
+    vHandleIdentifyRequest( sTemperatureSensorDevice.sIdentifyServerCluster.u16IdentifyTime);
 }
 
 /****************************************************************************
@@ -524,14 +522,14 @@ PRIVATE void vHandleIdentifyRequest(uint16 u16Duration)
  ****************************************************************************/
 PUBLIC void APP_cbTimerId(void *pvParam)
 {
-    if (sBaseDevice.sIdentifyServerCluster.u16IdentifyTime == 0)
+    if (sTemperatureSensorDevice.sIdentifyServerCluster.u16IdentifyTime == 0)
     {
         ZTIMER_eStop(u8TimerId);
         vGenericLEDSetOutput(1, 0);
     }
     else
     {
-        vGenericLEDSetOutput(1, sBaseDevice.sIdentifyServerCluster.u16IdentifyTime%2);
+        vGenericLEDSetOutput(1, sTemperatureSensorDevice.sIdentifyServerCluster.u16IdentifyTime%2);
         ZTIMER_eStop(u8TimerId);
         ZTIMER_eStart(u8TimerId, ZTIMER_TIME_MSEC(500));
     }

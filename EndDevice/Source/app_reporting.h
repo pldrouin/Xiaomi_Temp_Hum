@@ -1,10 +1,10 @@
 /*****************************************************************************
  *
- * MODULE:             JN-AN-1217
+ * MODULE:             JN-AN-1220 ZLO Sensor Demo
  *
- * COMPONENT:          app_zcl_task.h
+ * COMPONENT:          app_reporting.h
  *
- * DESCRIPTION:        TemperatureSensor Device application: ZCL Interface
+ * DESCRIPTION:        ZLO Demo : LightSensor Report (Implementation)
  *
  ****************************************************************************
  *
@@ -32,56 +32,43 @@
  *
  ***************************************************************************/
 
-/****************************************************************************/
-/* Description.                                                             */
-/* If you do not need this file to be parsed by doxygen then delete @file   */
-/****************************************************************************/
-
-/** @file
- * Add brief description here.
- * Add more detailed description here
- */
+#ifndef APP_REPORTING_H_
+#define APP_REPORTING_H_
 
 /****************************************************************************/
-/* Description End                                                          */
+/***        Type Definitions                                              ***/
 /****************************************************************************/
-
-#ifndef APP_ZCL_TASK_H_
-#define APP_ZCL_TASK_H_
+typedef struct {
+    uint16 u16ClusterID;
+    tsZCL_AttributeReportingConfigurationRecord sAttributeReportingConfigurationRecord;
+}tsReports;
 
 /****************************************************************************/
 /***        Include Files                                                 ***/
 /****************************************************************************/
-
 #include <jendefs.h>
 #include "zcl.h"
-#include "temperature_sensor.h"
-
+#include "app_end_device_node.h"
+#include "PDM.h"
 /****************************************************************************/
 /***        Macro Definitions                                             ***/
 /****************************************************************************/
 
 /****************************************************************************/
-/***        Type Definitions                                              ***/
-/****************************************************************************/
-
-/****************************************************************************/
 /***        Exported Functions                                            ***/
 /****************************************************************************/
-PUBLIC void APP_ZCL_vInitialise(void);
-PUBLIC void APP_ZCL_vSetIdentifyTime(uint16 u16Time);
-PUBLIC void APP_ZCL_vTask(void);
-PUBLIC void APP_ZCL_vEventHandler(ZPS_tsAfEvent *psStackEvent);
-PUBLIC void APP_cbTimerId(void *pvParam);
-PUBLIC void APP_cbTimerZclTick(void *pvParam);
+PUBLIC PDM_teStatus eRestoreReports(void);
+PUBLIC void vMakeSupportedAttributesReportable(void);
+PUBLIC void vLoadDefaultConfigForReportable(void);
+PUBLIC void vSaveReportableRecord(uint16 u16ClusterID, tsZCL_AttributeReportingConfigurationRecord* psAttributeReportingConfigurationRecord);
 
 /****************************************************************************/
-/***        Exported Variables                                            ***/
+/***        External Variables                                            ***/
 /****************************************************************************/
-extern tsHA_TemperatureSensorDevice sTemperatureSensorDevice;
-
-#endif /* APP_ZCL_TASK_H_ */
 
 /****************************************************************************/
-/***        END OF FILE                                                   ***/
+
 /****************************************************************************/
+/****************************************************************************/
+
+#endif //APP_REPORTING_H_

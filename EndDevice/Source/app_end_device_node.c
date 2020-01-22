@@ -4,7 +4,7 @@
  *
  * COMPONENT:          app_end_device_node.c
  *
- * DESCRIPTION:        Base Device Demo: End Device Application
+ * DESCRIPTION:        TemperatureSensor Device Demo: End Device Application
  *
  ****************************************************************************
  *
@@ -117,7 +117,6 @@
 /****************************************************************************/
 
 PRIVATE void vAppHandleAfEvent( BDB_tsZpsAfEvent *psZpsAfEvent);
-PRIVATE void vAppSendOnOff(void);
 PRIVATE void vAppSendIdentifyStop( uint16 u16Address, uint8 u8Endpoint);
 PRIVATE void vAppHandleZdoEvents( BDB_tsZpsAfEvent *psZpsAfEvent);
 PRIVATE void vStartPolling(void);
@@ -132,11 +131,10 @@ PRIVATE void APP_vSetICDerivedLinkKey(void);
 /****************************************************************************/
 /***        Exported Variables                                            ***/
 /****************************************************************************/
+const uint8 u8MyEndpoint = ENDDEVICE_APPLICATION_ENDPOINT;
 PUBLIC bool_t bDeepSleep;
 PUBLIC uint8 u8KeepAliveTime = KEEP_ALIVETIME;
 PUBLIC uint8 u8DeepSleepTime = DEEP_SLEEPTIME;
-tsZCL_ClusterInstance sTCluster;
-tsCLD_TemperatureMeasurement sTMeasurement;
 
 /****************************************************************************/
 /***        Local Variables                                               ***/
@@ -157,26 +155,12 @@ extern uint8 u8PDM_CalculateFileSystemCapacity();
 extern uint8 u8PDM_GetFileSystemOccupancy();
 #endif
 
-/****************************************************************************
- *
- * NAME: eApp_ZCL_RegisterEndpoint
- *
- * DESCRIPTION:
- * Register ZLO endpoints
- *
- * PARAMETER
- * Type                        Name                  Descirption
- * tfpZCL_ZCLCallBackFunction  fptr                  Pointer to ZCL Callback function
- *
- * RETURNS:
- * teZCL_Status
- *
- ****************************************************************************/
-teZCL_Status eApp_ZCL_RegisterEndpoints()
-{
-	return eCLD_TemperatureMeasurementCreateTemperatureMeasurement(&sTCluster, TRUE, &sCLD_TemperatureMeasurement, &sTMeasurement, au8TemperatureMeasurementAttributeControlBits);
-}
-
+/****************************************************************************/
+/* define the default reports */
+tsReports asDefaultReports[ZCL_NUMBER_OF_REPORTS] = \
+{\
+    {MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT,{0, E_ZCL_INT16,E_CLD_TEMPMEAS_ATTR_ID_MEASURED_VALUE,ZLO_MIN_REPORT_INTERVAL,ZLO_MAX_REPORT_INTERVAL,0,{TEMPERATURE_SENSOR_MINIMUM_REPORTABLE_CHANGE}}},\
+};
 
 /****************************************************************************
  *
@@ -191,12 +175,14 @@ teZCL_Status eApp_ZCL_RegisterEndpoints()
  ****************************************************************************/
 PUBLIC void APP_vInitialiseNode(void)
 {
+	PDM_teStatus eStatusReportReload;
     uint16 u16ByteRead;
 
     APP_bButtonInitialise();
 
     sht3x_initialise();
 
+    eStatusReportReload = eRestoreReports();
     eNodeState = E_STARTUP;
     PDM_eReadDataFromRecord(PDM_ID_APP_END_DEVICE,
                             &eNodeState,
@@ -214,6 +200,15 @@ PUBLIC void APP_vInitialiseNode(void)
 
     /* Initialise ZCL */
     APP_ZCL_vInitialise();
+
+    /*Load the reports from the PDM or the default ones depending on the PDM load record status*/
+    if(eStatusReportReload !=PDM_E_STATUS_OK )
+    {
+    	/*Load Defaults if the data was not correct*/
+    	vLoadDefaultConfigForReportable();
+    }
+    /*Make the reportable attributes */
+    vMakeSupportedAttributesReportable();
 
     /* Initialise other software modules
      * HERE
@@ -446,13 +441,6 @@ PUBLIC void APP_taskEndDevice(void)
                     }
                     switch(sAppEvent.uEvent.sButton.u8Button)
                     {
-                        case APP_E_BUTTONS_BUTTON_SW1:  //
-                            DBG_vPrintf(TRACE_APP_EVENT, "APP-EVT: Switch 1\n");
-                            if ((eNodeState == E_RUNNING) && (bFailToJoin == FALSE))
-                            {
-                                vAppSendOnOff();
-                            }
-                            break;
                         case APP_E_BUTTONS_BUTTON_SW2:  //NwkSteering
                             eStatus = BDB_eNsStartNwkSteering();
                             DBG_vPrintf(TRACE_APP_EVENT, "APP-EVT: Switch 2 status %d\n",eStatus);
@@ -901,38 +889,6 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
     {
         DBG_vPrintf(TRACE_APP, "APP: Failed to Poll Tick Timer\n");
     }
-}
-
-/****************************************************************************
- *
- * NAME: vAppSendOnOff
- *
- * DESCRIPTION:
- * Sends an On Of Togle Command to the bound devices
- *
- * RETURNS:
- * void
- *
- ****************************************************************************/
-PRIVATE void vAppSendOnOff(void)
-{
-    tsZCL_Address   sDestinationAddress;
-    uint8 u8seqNo;
-    teZCL_Status eStatus;
-
-    sDestinationAddress.eAddressMode = E_ZCL_AM_BOUND_NO_ACK;
-
-    eStatus = eCLD_OnOffCommandSend( COORDINATOR_APPLICATION_ENDPOINT,      // Src Endpoint
-                             0,                                             // Dest Endpoint (bound so do not care)
-                             &sDestinationAddress,
-                             &u8seqNo,
-                             E_CLD_ONOFF_CMD_TOGGLE);
-
-    if (eStatus != E_ZCL_SUCCESS)
-    {
-        DBG_vPrintf(TRACE_APP, "Send Toggle Failed x%02x\n", eStatus);
-    }
-
 }
 
 /****************************************************************************
