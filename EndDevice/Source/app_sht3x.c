@@ -252,7 +252,7 @@ int sht3x_get_measurements(uint16_t* temp, uint16_t* hum)
 	if(!sht3x_read_two_values(0xE0,0x00,temp,hum)) {
 		DBG_vPrintf(TRACE_SI, "Read values are 0x%04x 0x%04x\n",*temp,*hum);
 
-		//if(!sht3x_send_command(0x30,0x93,TRUE)) {
+		if(!sht3x_send_command(0x30,0x93,TRUE)) {
 
 			if(!sht3x_write_alert_limit(0x16, *hum, *temp) &&
 					!sht3x_write_alert_limit(0x0B, *hum, *temp) &&
@@ -278,13 +278,14 @@ int sht3x_get_measurements(uint16_t* temp, uint16_t* hum)
 					sTemperatureSensorDevice.sTemperatureMeasurementServerCluster.i16MeasuredValue=*temp*17500/65535-4500;
 					//PDUM_eAPduInstanceSetPayloadSize(hAPduInst, 0);
 
-					teZCL_Status status=eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst);
-					DBG_vPrintf(TRACE_SI, "Status is %u\n",status);
+					//teZCL_Status status=
+					eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst);
+					//DBG_vPrintf(TRACE_SI, "Status is %u\n",status);
 					PDUM_eAPduFreeAPduInstance(hAPduInst);
 				}
 				return 0;
 			}
-		//}
+		}
 
 	}
 

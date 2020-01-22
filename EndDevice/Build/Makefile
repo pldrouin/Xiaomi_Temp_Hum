@@ -259,7 +259,6 @@ APPSRC += app_serial_commands.c
 APPSRC += app_zcl_task.c
 APPSRC += app_buttons.c
 APPSRC += app_sht3x.c
-APPSRC += app_reporting.c
 ifeq ($(APP_NTAG_ICODE),1)
 APPSRC += app_ntag_icode.c
 #APPSRC += app_icode.c

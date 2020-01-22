@@ -40,7 +40,6 @@
 /****************************************************************************/
 #include "TemperatureMeasurement.h"
 #include "zcl_options.h"
-#include "app_reporting.h"
 
 /****************************************************************************/
 /***        Macro Definitions                                             ***/
@@ -58,11 +57,6 @@
 //#define NEVER_DEEP_SLEEP   TRUE
 #define ZCL_TICK_TIME           ZTIMER_TIME_MSEC(100)
 
-// Temperature Sensing Macros
-#define TEMPERATURE_SENSOR_MINIMUM_MEASURED_VALUE                   0x0001
-#define TEMPERATURE_SENSOR_MAXIMUM_MEASURED_VALUE                   0xFAF
-#define TEMPERATURE_SENSOR_MINIMUM_REPORTABLE_CHANGE                0x01
-#define TEMPERATURE_SENSOR_SAMPLING_TIME_IN_SECONDS                 5
 /****************************************************************************/
 /***        Type Definitions                                              ***/
 /****************************************************************************/
@@ -85,8 +79,6 @@ extern uint8 u8KeepAliveTime;
 extern uint8 u8DeepSleepTime;
 extern tsZCL_ClusterDefinition sCLD_TemperatureMeasurement;
 extern uint8 au8TemperatureMeasurementAttributeControlBits[];
-extern tsReports asDefaultReports[];
-
 /****************************************************************************/
 /****************************************************************************/
 /****************************************************************************/

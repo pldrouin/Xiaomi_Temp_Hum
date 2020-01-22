@@ -155,13 +155,6 @@ extern uint8 u8PDM_CalculateFileSystemCapacity();
 extern uint8 u8PDM_GetFileSystemOccupancy();
 #endif
 
-/****************************************************************************/
-/* define the default reports */
-tsReports asDefaultReports[ZCL_NUMBER_OF_REPORTS] = \
-{\
-    {MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT,{0, E_ZCL_INT16,E_CLD_TEMPMEAS_ATTR_ID_MEASURED_VALUE,ZLO_MIN_REPORT_INTERVAL,ZLO_MAX_REPORT_INTERVAL,0,{TEMPERATURE_SENSOR_MINIMUM_REPORTABLE_CHANGE}}},\
-};
-
 /****************************************************************************
  *
  * NAME: APP_vInitialiseNode
@@ -175,14 +168,12 @@ tsReports asDefaultReports[ZCL_NUMBER_OF_REPORTS] = \
  ****************************************************************************/
 PUBLIC void APP_vInitialiseNode(void)
 {
-	PDM_teStatus eStatusReportReload;
     uint16 u16ByteRead;
 
     APP_bButtonInitialise();
 
     sht3x_initialise();
 
-    eStatusReportReload = eRestoreReports();
     eNodeState = E_STARTUP;
     PDM_eReadDataFromRecord(PDM_ID_APP_END_DEVICE,
                             &eNodeState,
@@ -200,15 +191,6 @@ PUBLIC void APP_vInitialiseNode(void)
 
     /* Initialise ZCL */
     APP_ZCL_vInitialise();
-
-    /*Load the reports from the PDM or the default ones depending on the PDM load record status*/
-    if(eStatusReportReload !=PDM_E_STATUS_OK )
-    {
-    	/*Load Defaults if the data was not correct*/
-    	vLoadDefaultConfigForReportable();
-    }
-    /*Make the reportable attributes */
-    vMakeSupportedAttributesReportable();
 
     /* Initialise other software modules
      * HERE
