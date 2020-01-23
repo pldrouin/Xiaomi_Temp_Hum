@@ -71,8 +71,6 @@ bool_t sht3x_i2c_configure()
 {
 	if(u32AHI_DioReadInput() & (1<<DIO_SHT_VDD)) {
 		vAHI_SiMasterConfigure(TRUE,FALSE,63);
-
-		while(sht3x_send_command(0x20,0x32,FALSE)){}
 		return TRUE;
 
 	} else return FALSE;
@@ -256,8 +254,8 @@ int sht3x_get_measurements(uint16_t* temp, uint16_t* hum)
 
 			if(!sht3x_write_alert_limit(0x16, *hum, *temp) &&
 					!sht3x_write_alert_limit(0x0B, *hum, *temp) &&
-					!sht3x_write_alert_limit(0x1D, *hum+1024, *temp+128) && //Minimum for hum is 512, temp is 128
-					!sht3x_write_alert_limit(0x00, *hum-1024, *temp-128)) {
+					!sht3x_write_alert_limit(0x1D, *hum+1536, *temp+128) && //Minimum for hum is 512, temp is 128
+					!sht3x_write_alert_limit(0x00, *hum-1536, *temp-128)) {
 
 				while(sht3x_i2c_clear_alerts());
 

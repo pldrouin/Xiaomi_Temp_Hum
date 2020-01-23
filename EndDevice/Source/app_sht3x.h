@@ -11,6 +11,8 @@
 #define DIO_SHT_VDD (13)
 #define DIO_SHT_ALERT (12)
 
+#define SHT3X_STATUS_ALERT (65535)
+
 #include <jendefs.h>
 #include <stdlib.h>
 #include "pdum_gen.h"

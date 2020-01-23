@@ -363,10 +363,15 @@ PUBLIC void APP_taskEndDevice(void)
     	DBG_vPrintf(TRUE, "\nSHT ALERT!\n");
     	uint16_t status;
 
-    	if(!sht3x_read_status(&status))	DBG_vPrintf(TRUE, "Status is 0x%04x\n",status);
-    	uint16_t temp, hum;
-    	while(sht3x_get_measurements(&temp, &hum)){}
-    	DBG_vPrintf(TRUE, "Values are %i/100 C, %i/100 %%\n",((uint32_t)(temp)*17500)/65535-4500,((uint32_t)hum)*10000/65535);
+    	while(sht3x_read_status(&status)){}
+    	DBG_vPrintf(TRUE, "Status is 0x%04x\n",status);
+
+    	if(status&SHT3X_STATUS_ALERT) {
+    		uint16_t temp, hum;
+
+    		while(sht3x_get_measurements(&temp, &hum)){}
+    		DBG_vPrintf(TRUE, "Values are %i/100 C, %i/100 %%\n",((uint32_t)(temp)*17500)/65535-4500,((uint32_t)hum)*10000/65535);
+    	}
     	sht3x_alert=FALSE;
     }
 

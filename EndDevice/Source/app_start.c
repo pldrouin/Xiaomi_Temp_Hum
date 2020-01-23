@@ -282,6 +282,8 @@ PWRM_CALLBACK(PreSleep)
     vAHI_UartDisable(E_AHI_UART_0);
 
     sht3x_i2c_disable();
+
+    vAHI_WatchdogStop();
 }
 
 /****************************************************************************
@@ -301,6 +303,8 @@ PWRM_CALLBACK(PreSleep)
  ****************************************************************************/
 PWRM_CALLBACK(Wakeup)
 {
+	vAHI_WatchdogStart(12);
+
     /*Stabilise the oscillator*/
 #if JENNIC_CHIP_FAMILY == JN516x
     // Wait until FALSE i.e. on XTAL  - otherwise uart data will be at wrong speed
@@ -424,7 +428,7 @@ PRIVATE void APP_vInitialise(void)
     /* Initialise application */
     APP_vInitialiseNode();
 
-    sht3x_i2c_configure();
+    if(sht3x_i2c_configure()) while(sht3x_send_command(0x20,0x32,FALSE)){}
 }
 
 /****************************************************************************
