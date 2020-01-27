@@ -44,6 +44,7 @@
 #include "zps_apl_af.h"
 #include "mac_vs_sap.h"
 #include "AppHardwareApi.h"
+#include "pwrm.h"
 #include "dbg.h"
 #include "app_main.h"
 #include "app_buttons.h"
@@ -157,18 +158,19 @@ PUBLIC void APP_vMainLoop(void)
 
     while (TRUE)
     {
-        DBG_vPrintf(FALSE, "APP: Entering zps_taskZPS\n");
+        //DBG_vPrintf(TRUE, "APP: Entering zps_taskZPS %d\n",PWRM_u16GetActivityCount());
         zps_taskZPS();
 
-        DBG_vPrintf(FALSE, "APP: Entering bdb_taskBDB\n");
+        //DBG_vPrintf(TRUE, "APP: Entering bdb_taskBDB %d\n",PWRM_u16GetActivityCount());
         bdb_taskBDB();
 
-        DBG_vPrintf(FALSE, "APP: Entering ZTIMER_vTask\n");
+        //DBG_vPrintf(TRUE, "APP: Entering ZTIMER_vTask %d\n",PWRM_u16GetActivityCount());
         ZTIMER_vTask();
 
-        DBG_vPrintf(FALSE, "APP: Entering APP_taskRouter\n");
+        //DBG_vPrintf(TRUE, "APP: Entering APP_taskEndDevice %d\n",PWRM_u16GetActivityCount());
         APP_taskEndDevice();
 
+        //DBG_vPrintf(TRUE, "APP: Entering APP_taskAtSerial %d\n",PWRM_u16GetActivityCount());
         APP_taskAtSerial();
 
         /* Re-load the watch-dog timer. Execution must return through the idle
@@ -181,6 +183,7 @@ PUBLIC void APP_vMainLoop(void)
         /* suspends CPU operation when the system is idle or puts the device to
          * sleep if there are no activities in progress
          */
+        //DBG_vPrintf(TRUE, "APP: PWRM_vManagePower %d\n",PWRM_u16GetActivityCount());
         PWRM_vManagePower();
 
     }

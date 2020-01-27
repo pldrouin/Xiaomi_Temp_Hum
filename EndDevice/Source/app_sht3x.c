@@ -252,37 +252,20 @@ int sht3x_get_measurements(uint16_t* temp, uint16_t* hum)
 
 		if(!sht3x_send_command(0x30,0x93,TRUE)) {
 
-			if(!sht3x_write_alert_limit(0x16, *hum, *temp) &&
-					!sht3x_write_alert_limit(0x0B, *hum, *temp) &&
-					!sht3x_write_alert_limit(0x1D, *hum+1536, *temp+128) && //Minimum for hum is 512, temp is 128
-					!sht3x_write_alert_limit(0x00, *hum-1536, *temp-128)) {
+			//while(sht3x_i2c_clear_alerts()){}
 
-				while(sht3x_i2c_clear_alerts());
+			if(!sht3x_write_alert_limit(0x16, *hum, *temp) &&  //High clear
+					!sht3x_write_alert_limit(0x0B, *hum, *temp) &&   //Low clear
+					!sht3x_write_alert_limit(0x1D, *hum+640, *temp+160) && //Minimum for hum is 512, temp is 128. Add 1/4*LSB for average alarm with 0.75*LSB delta, from 0.25*LSB delta to 1.25*LSB delta.
+					!sht3x_write_alert_limit(0x00, *hum-640, *temp-160)) { //Remove 1.25*LSB for average alarm with 0.75*LSB delta, from 0.25*LSB delta to 1.25*LSB delta.
 
-				while(sht3x_send_command(0x20,0x32,FALSE)){};
+				while(sht3x_send_command(0x20,0x32,FALSE)){}
 
 				/*uint16_t hs, hc, ls, lc;
 				if(!sht3x_read_alert_high_set(&hs))	DBG_vPrintf(TRUE, "Alert high set is 0x%04x\n",hs);
 				if(!sht3x_read_alert_high_clear(&hc))	DBG_vPrintf(TRUE, "Alert high clear is 0x%04x\n",hc);
 				if(!sht3x_read_alert_low_clear(&ls))	DBG_vPrintf(TRUE, "Alert low clear is 0x%04x\n",ls);
 				if(!sht3x_read_alert_low_set(&lc))		DBG_vPrintf(TRUE, "Alert low set is 0x%04x\n",lc);*/
-
-				tsZCL_Address destaddr={E_ZCL_AM_SHORT, {0x0000}};
-
-				PDUM_thAPduInstance hAPduInst = PDUM_hAPduAllocateAPduInstance(apduZCL);
-
-				if(hAPduInst != PDUM_INVALID_HANDLE) {
-
-					sThermostatDevice.sTemperatureMeasurementServerCluster.i16MeasuredValue=*temp*17500/65535-4500;
-					sThermostatDevice.sRelativeHumidityMeasurementServerCluster.u16MeasuredValue=*hum*10000/65535;
-					//PDUM_eAPduInstanceSetPayloadSize(hAPduInst, 0);
-
-					//teZCL_Status status=
-					eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst);
-					eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_RELATIVE_HUMIDITY_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst);
-					//DBG_vPrintf(TRACE_SI, "Status is %u\n",status);
-					PDUM_eAPduFreeAPduInstance(hAPduInst);
-				}
 				return 0;
 			}
 		}

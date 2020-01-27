@@ -270,10 +270,10 @@ PWRM_CALLBACK(PreSleep)
 
     ZTIMER_vSleep();
 
-    while(sht3x_i2c_clear_alerts());
-
     /* Set up wake up dio input */
     vSetUpWakeUpConditions(bDeepSleep);
+
+    while(sht3x_i2c_clear_alerts());
 
     /* Wait for the UART to complete any transmission */
     DBG_vUartFlush();
@@ -319,7 +319,9 @@ PWRM_CALLBACK(Wakeup)
     	u8KeepAliveTime = KEEP_ALIVETIME;
     	u8DeepSleepTime = DEEP_SLEEPTIME;
 
-    } else if(diowake&(1<<DIO_SHT_ALERT)) {
+    }
+
+    if(diowake&(1<<DIO_SHT_ALERT)) {
     	//u8KeepAliveTime = KEEP_ALIVETIME;
     	//u8DeepSleepTime = DEEP_SLEEPTIME;
     	sht3x_alert=TRUE;

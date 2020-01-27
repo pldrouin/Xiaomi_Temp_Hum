@@ -146,6 +146,7 @@ PRIVATE bool_t bBDBJoinFailed = FALSE;
 PRIVATE bool_t bFailToJoin = FALSE;
 PRIVATE pwrm_tsWakeTimerEvent    sWake;
 PRIVATE bool_t bFnBInProgress = FALSE;
+PRIVATE PDUM_thAPduInstance hAPduInst;
 /****************************************************************************/
 /***        Exported Functions                                            ***/
 /****************************************************************************/
@@ -192,6 +193,8 @@ PUBLIC void APP_vInitialiseNode(void)
     /* Initialise ZCL */
     APP_ZCL_vInitialise();
 
+    ZPS_bAplAfSetEndDeviceTimeout(ZPSENDDEVICETIMEOUT);
+
     /* Initialise other software modules
      * HERE
      */
@@ -215,6 +218,8 @@ PUBLIC void APP_vInitialiseNode(void)
     APP_vSetICDerivedLinkKey();
     vPrintAPSTable();
 #endif
+
+    hAPduInst = PDUM_hAPduAllocateAPduInstance(apduZCL);
 }
 
 
@@ -359,22 +364,6 @@ PUBLIC void APP_vBdbCallback(BDB_tsBdbEvent *psBdbEvent)
  ****************************************************************************/
 PUBLIC void APP_taskEndDevice(void)
 {
-    if(sht3x_alert) {
-    	DBG_vPrintf(TRUE, "\nSHT ALERT!\n");
-    	uint16_t status;
-
-    	while(sht3x_read_status(&status)){}
-    	DBG_vPrintf(TRUE, "Status is 0x%04x\n",status);
-
-    	if(status&SHT3X_STATUS_ALERT) {
-    		uint16_t temp, hum;
-
-    		while(sht3x_get_measurements(&temp, &hum)){}
-    		DBG_vPrintf(TRUE, "Values are %i/100 C, %i/100 %%\n",((uint32_t)(temp)*17500)/65535-4500,((uint32_t)hum)*10000/65535);
-    	}
-    	sht3x_alert=FALSE;
-    }
-
     APP_tsEvent sAppEvent;
     sAppEvent.eType = APP_E_EVENT_NONE;
     BDB_teStatus eStatus;
@@ -716,7 +705,7 @@ PUBLIC void APP_vFactoryResetRecords(void)
  * NAME: vStartPolling
  *
  * DESCRIPTION:
- * start te remote polling, initial at a fast rate
+ * start the remote polling, initial at a fast rate
  *
  * RETURNS:
  * void
@@ -747,7 +736,7 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
 {
 
     uint32 u32Time = ZTIMER_TIME_MSEC(1000);
-
+    DBG_vPrintf(TRACE_POLL_SLEEP,"Initial activity %d\n",PWRM_u16GetActivityCount());
 
     switch (eNodeState)
     {
@@ -797,21 +786,53 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
                 {
                     /* stop sleeping for the duration of rejoin attempts */
                     u8KeepAliveTime = KEEP_ALIVETIME;
+
+                } else if(sht3x_alert) {
+            		DBG_vPrintf(TRUE, "\nSHT ALERT!\n");
+            		/*uint16_t status;
+
+            		while(sht3x_read_status(&status)){}
+            		DBG_vPrintf(TRUE, "Status is 0x%04x\n",status);
+
+            		if(status&SHT3X_STATUS_ALERT) {*/
+            			uint16_t temp, hum;
+
+            			while(sht3x_get_measurements(&temp, &hum)){}
+            			DBG_vPrintf(TRUE, "Values are %i/100 C, %i/100 %%\n",((uint32_t)(temp)*17500)/65535-4500,((uint32_t)hum)*10000/65535);
+
+            			tsZCL_Address destaddr={E_ZCL_AM_SHORT, {0x0000}};
+
+            			sThermostatDevice.sTemperatureMeasurementServerCluster.i16MeasuredValue=temp*17500/65535-4500;
+            			sThermostatDevice.sRelativeHumidityMeasurementServerCluster.u16MeasuredValue=hum*10000/65535;
+            			//PDUM_eAPduInstanceSetPayloadSize(hAPduInst, 0);
+
+            			int32_t i;
+
+            			for(i=ATTRREPORTNUMTRIALS-1; i>=0; --i)
+            				if(!eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst))
+            					break;
+
+            			for(i=ATTRREPORTNUMTRIALS-1; i>=0; --i)
+            				if(!eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_RELATIVE_HUMIDITY_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst))
+            					break;
+
+            		/*}*/
+                	sht3x_alert=FALSE;
+                	break; //Skip polling
                 }
+
                 /* Manage polling, then warm sleep, then deep sleep */
                 if(u8KeepAliveTime == 0)
                 {
 
-                	if(!sht3x_alert) {
-
-                		vStopAllTimers();
-                		//if (u8DeepSleepTime)
-                		//{
-                			uint8 u8Status;
-                			u8Status = PWRM_eScheduleActivity(&sWake, (SLEEP_DURATION_MS * SLEEP_TIMER_TICKS_PER_MS) , vWakeCallBack);
-                			DBG_vPrintf(TRACE_POLL_SLEEP, "poll task: schedule sleep status %02x\n",
-                					u8Status );
-                		/*}
+                	vStopAllTimers();
+                	//if (u8DeepSleepTime)
+                	//{
+                	uint8 u8Status;
+                	u8Status = PWRM_eScheduleActivity(&sWake, (SLEEP_DURATION_MS * SLEEP_TIMER_TICKS_PER_MS) , vWakeCallBack);
+                	DBG_vPrintf(TRACE_POLL_SLEEP, "poll task: schedule sleep status %02x\n",
+                			u8Status );
+                	/*}
 
                 		else
                 		{
@@ -819,7 +840,6 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
                 			bDeepSleep = TRUE;
                 			DBG_vPrintf(TRACE_POLL_SLEEP, "poll task: go deep\n");
                 		}*/
-                	}
 
                     DBG_vPrintf(TRACE_POLL_SLEEP,"Activity %d\n",PWRM_u16GetActivityCount());
                     return;
@@ -830,6 +850,7 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
                    uint8 u8PStatus;
                    if (bBDBJoinFailed == FALSE)
                    {
+                	   DBG_vPrintf(TRACE_POLL_SLEEP, "Data polling...\n");
                        u8PStatus = ZPS_eAplZdoPoll();
                        if ( u8PStatus)
                        {
@@ -967,15 +988,15 @@ PRIVATE void vStopAllTimers(void)
 PUBLIC void APP_vStartUpHW(void)
 {
 
-    uint8 u8Status;
+    //uint8 u8Status;
 
 
     /* Restart the keyboard scanning timer as we've come up through */
     /* warm start via the Power Manager if we get here              */
 
-    DBG_vPrintf(TRACE_POLL_SLEEP, "\nWoken: start poll timer,");
+    /*DBG_vPrintf(TRACE_POLL_SLEEP, "\nWoken: start poll timer,");
     u8Status = ZPS_eAplZdoPoll();
-    DBG_vPrintf(TRACE_POLL_SLEEP, " Wake poll %02x\n", u8Status);
+    DBG_vPrintf(TRACE_POLL_SLEEP, " Wake poll %02x\n", u8Status);*/
     if(ZTIMER_eStart(u8TimerPoll, ZTIMER_TIME_MSEC(200)) != E_ZTIMER_OK)
     {
         DBG_vPrintf(TRACE_APP, "APP: Failed to start Poll Tick Timer\n");

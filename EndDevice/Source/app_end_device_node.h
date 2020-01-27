@@ -56,6 +56,10 @@
 //#define NEVER_DEEP_SLEEP   TRUE
 #define ZCL_TICK_TIME           ZTIMER_TIME_MSEC(100)
 
+#define ZPSENDDEVICETIMEOUT ZED_TIMEOUT_256_MIN
+
+#define ATTRREPORTNUMTRIALS (5)
+
 /****************************************************************************/
 /***        Type Definitions                                              ***/
 /****************************************************************************/

@@ -366,10 +366,6 @@ PRIVATE void vProcessCommand(void)
     	   if(newval) sht3x_i2c_configure_nocheck();
            DBG_vPrintf(TRUE, "SHT power set to %i\n",newval>>DIO_SHT_VDD);
     }
-    if (sButtonEvent.eType != APP_E_EVENT_NONE)
-    {
-        ZQ_bQueueSend(&APP_msgAppEvents, &sButtonEvent);
-    }
 
     else if (0 == stricmp((char*)token, "temphum"))
     {
@@ -378,6 +374,7 @@ PRIVATE void vProcessCommand(void)
            while(sht3x_get_measurements(&temp, &hum)){}
            DBG_vPrintf(TRUE, "Values are %i/100 C, %i/100 %%\n",((uint32_t)(temp)*17500)/65535-4500,((uint32_t)hum)*10000/65535);
     }
+
     if (sButtonEvent.eType != APP_E_EVENT_NONE)
     {
         ZQ_bQueueSend(&APP_msgAppEvents, &sButtonEvent);
