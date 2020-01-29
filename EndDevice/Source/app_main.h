@@ -61,6 +61,7 @@ PUBLIC void APP_vSetUpHardware(void);
 /****************************************************************************/
 
 extern PUBLIC uint8 u8TimerButtonScan;
+extern PUBLIC uint8 u8TimerLED;
 extern PUBLIC uint8 u8TimerPoll;
 extern PUBLIC uint8 u8TimerId;
 extern PUBLIC uint8 u8TimerZCL;

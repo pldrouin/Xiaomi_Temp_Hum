@@ -48,6 +48,7 @@
 #include "dbg.h"
 #include "app_main.h"
 #include "app_buttons.h"
+#include "app_led.h"
 #include "app_events.h"
 #include "app_zcl_task.h"
 #include "PDM.h"
@@ -171,7 +172,9 @@ PUBLIC void APP_vMainLoop(void)
         APP_taskEndDevice();
 
         //DBG_vPrintf(TRUE, "APP: Entering APP_taskAtSerial %d\n",PWRM_u16GetActivityCount());
+#ifdef SERIAL_COMMS
         APP_taskAtSerial();
+#endif
 
         /* Re-load the watch-dog timer. Execution must return through the idle
          * task before the CPU is suspended by the power manager. This ensures
@@ -203,11 +206,15 @@ PUBLIC void APP_vMainLoop(void)
 PUBLIC void APP_vSetUpHardware(void)
 {
 #if (JENNIC_CHIP_FAMILY == JN517x)
+#ifdef SERIAL_COMMS
     vAHI_Uart0RegisterCallback ( APP_isrUart );
+#endif
     vAHI_SysCtrlRegisterCallback ( vISR_SystemController );
     u32AHI_Init();
     vAHI_InterruptSetPriority ( MICRO_ISR_MASK_BBC,        NVIC_INT_PRIO_LEVEL_BBC );
+#ifdef SERIAL_COMMS
     vAHI_InterruptSetPriority ( MICRO_ISR_MASK_UART0,   NVIC_INT_PRIO_LEVEL_UART0 );
+#endif
     vAHI_InterruptSetPriority ( MICRO_ISR_MASK_SYSCTRL, NVIC_INT_PRIO_LEVEL_SYSCTRL );
 #endif
 
@@ -238,6 +245,7 @@ PUBLIC void APP_vInitResources(void)
 
     /* Create Z timers */
     ZTIMER_eOpen(&u8TimerButtonScan,    APP_cbTimerButtonScan,  NULL, ZTIMER_FLAG_PREVENT_SLEEP);
+    ZTIMER_eOpen(&u8TimerLED,    		APP_cbTimerLED,  		&tsLed, ZTIMER_FLAG_PREVENT_SLEEP);
     ZTIMER_eOpen(&u8TimerPoll,          APP_cbTimerPoll,        NULL, ZTIMER_FLAG_PREVENT_SLEEP);
     ZTIMER_eOpen(&u8TimerId,            APP_cbTimerId,          NULL, ZTIMER_FLAG_PREVENT_SLEEP);
     ZTIMER_eOpen(&u8TimerZCL,           APP_cbTimerZclTick,     NULL, ZTIMER_FLAG_PREVENT_SLEEP);

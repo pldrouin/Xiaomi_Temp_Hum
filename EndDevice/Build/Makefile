@@ -76,7 +76,7 @@ CFLAGS         += -DSINGLE_CHANNEL=$(SINGLE_CHANNEL)
 
 JENNIC_PCB ?= DEVKIT4
 
-#DR ?= 
+DR ?= 
 
 ifeq ($(DR), DR1199)
 CFLAGS  += -DBUTTON_MAP_$(DR)
@@ -84,6 +84,12 @@ CFLAGS += -D$(DR)
 else ifeq ($(DR), DONGLE)
 CFLAGS  += -DBUTTON_MAP_DR1199
 CFLAGS += -D$(DR)
+endif
+
+SERIAL_COMMS ?= 0
+
+ifeq ($(SERIAL_COMMS), 1)
+CFLAGS += -DSERIAL_COMMS
 endif
 
 # NFC NCI ICODE (new) functionality
@@ -169,7 +175,7 @@ CFLAGS  += -DUART_BAUD_RATE=$(BAUD)
 
 ###############################################################################
 # Define TRACE to use with DBG module
-TRACE ?=1
+TRACE ?=0
 ifeq ($(TRACE), 1)
 CFLAGS += -DDBG_ENABLE
 #CFLAGS += -DDEBUG_921600
@@ -238,7 +244,11 @@ ifeq ($(JENNIC_CHIP_FAMILY), JN517x)
 APPSRC += port_JN517x.c
 endif
 ifeq ($(JENNIC_CHIP_FAMILY), JN516x)
+ifeq ($(SERIAL_COMMS), 1)
 APPSRC += irq_JN516x.S
+else
+APPSRC += irq_JN516x_noserial.S
+endif
 APPSRC += portasm_JN516x.S
 APPSRC += port_JN516x.c
 #APPSRC += StackMeasure.c
@@ -247,7 +257,10 @@ ifeq ($(JENNIC_CHIP_FAMILY), JN517x)
 APPSRC += AHI_ModuleConfiguration.c 
 endif
 
+ifeq ($(SERIAL_COMMS), 1)
 APPSRC += uart.c
+APPSRC += app_serial_commands.c
+endif
 
 APPSRC += pdum_gen.c
 APPSRC += pdum_apdu.S
@@ -256,10 +269,10 @@ APPSRC += zps_gen.c
 #APPSRC += app_exceptions.c
 APPSRC += app_start.c
 APPSRC += app_end_device_node.c
-APPSRC += app_serial_commands.c
 APPSRC += app_zcl_task.c
 APPSRC += app_buttons.c
 APPSRC += app_sht3x.c
+APPSRC += app_led.c
 ifeq ($(APP_NTAG_ICODE),1)
 APPSRC += app_ntag_icode.c
 #APPSRC += app_icode.c

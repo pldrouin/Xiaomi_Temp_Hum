@@ -56,6 +56,7 @@
 #include "app_main.h"
 #include "app_buttons.h"
 #include "app_sht3x.h"
+#include "app_led.h"
 #include "ZTimer.h"
 #include "app_events.h"
 #include <rnd_pub.h>
@@ -176,6 +177,8 @@ PUBLIC void APP_vInitialiseNode(void)
 
     sht3x_initialise();
 
+    led_initialise();
+
     eNodeState = E_STARTUP;
     PDM_eReadDataFromRecord(PDM_ID_APP_END_DEVICE,
                             &eNodeState,
@@ -259,6 +262,7 @@ PUBLIC void APP_vBdbCallback(BDB_tsBdbEvent *psBdbEvent)
             bBDBJoinFailed = FALSE;
             DBG_vPrintf(TRACE_APP_BDB,"APP: BDB_EVENT_REJOIN_SUCCESS\n");
 
+            led_connect();
             sht3x_i2c_initialise();
             sht3x_alert=TRUE;
             break;
@@ -270,6 +274,7 @@ PUBLIC void APP_vBdbCallback(BDB_tsBdbEvent *psBdbEvent)
             PDM_eSaveRecordData(PDM_ID_APP_END_DEVICE,
                                 &eNodeState,
                                 sizeof(teNodeState));
+            led_connect();
             sht3x_i2c_initialise();
             sht3x_alert=TRUE;
             vStartPolling();
@@ -665,6 +670,8 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
     if(bButtonDown && !u16FastPoll) {
     	++u8ButtonDownCount;
 
+    	if(u8ButtonDownCount == BUTTON_PRESS_RESET_TIME-1) led_device_reset();
+
     	if(u8ButtonDownCount >= BUTTON_PRESS_RESET_TIME) {
 
 			if (eNodeState == E_RUNNING) {
@@ -750,6 +757,7 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
             			//PDUM_eAPduInstanceSetPayloadSize(hAPduInst, 0);
 
             			int32_t i;
+            			led_meas_send();
 
             			for(i=ATTRREPORTNUMTRIALS-1; i>=0; --i) {
             				if(!eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst))
@@ -766,7 +774,7 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
 
             		/*}*/
                 	sht3x_alert=FALSE;
-                	break; //Skip polling
+                	//break; //Skip polling
                 }
 
                 /* Manage polling, then warm sleep, then deep sleep */

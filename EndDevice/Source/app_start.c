@@ -147,6 +147,7 @@ PUBLIC void vAppMain(void)
     /*
      * Don't use RTS/CTS pins on UART0 as they are used for buttons
      * */
+#ifdef DBG_ENABLE
     vAHI_UartSetRTSCTS(E_AHI_UART_0, FALSE);
     /* Initialise the debug diagnostics module to use UART0 at 115K Baud;
      * Do not use UART 1 if LEDs are used, as it shares DIO with the LEDS */
@@ -158,6 +159,7 @@ PUBLIC void vAppMain(void)
         vAHI_UartSetClocksPerBit(DBG_E_UART_0, 8);
     }
     #endif
+#endif
 
 #if (JENNIC_CHIP_FAMILY == JN516x)
     /* Initialise the stack overflow exception to trigger if the end of the
@@ -275,11 +277,13 @@ PWRM_CALLBACK(PreSleep)
 
     sht3x_i2c_disable();
 
+#ifdef DBG_ENABLE
     /* Wait for the UART to complete any transmission */
     DBG_vUartFlush();
 
     /* Disable UART (if enabled) */
     vAHI_UartDisable(E_AHI_UART_0);
+#endif
 
     vAHI_WatchdogStop();
 }
@@ -320,11 +324,15 @@ PWRM_CALLBACK(Wakeup)
     	button_wake=TRUE;
     	sht3x_alert=TRUE;
 
-    } else if(diowake&(1<<UART_RXD_DIO)) {
+    }
+#if (defined SERIAL_COMMS && defined RX_WAKE)
+    else if(diowake&(1<<UART_RXD_DIO)) {
     	u8KeepAliveTime = KEEP_ALIVETIME;
     	u8DeepSleepTime = DEEP_SLEEPTIME;
 
-    } else sht3x_alert=TRUE;
+    }
+#endif
+    else sht3x_alert=TRUE;
 
    /* if(diowake&(1<<DIO_SHT_ALERT)) {
     	//u8KeepAliveTime = KEEP_ALIVETIME;
@@ -332,8 +340,11 @@ PWRM_CALLBACK(Wakeup)
     	sht3x_alert=TRUE;
     }*/
 
+#if (defined SERIAL_COMMS && defined RX_WAKE)
     vAHI_DioInterruptEnable(0, (1<<UART_RXD_DIO));
+#endif
 
+#ifdef DBG_ENABLE
     /* Don't use RTS/CTS pins on UART0 as they are used for buttons */
     vAHI_UartSetRTSCTS(E_AHI_UART_0, FALSE);
     DBG_vUartInit(DBG_E_UART_0, DBG_E_UART_BAUD_RATE_115200);
@@ -344,6 +355,7 @@ PWRM_CALLBACK(Wakeup)
         vAHI_UartSetClocksPerBit(DBG_E_UART_0, 8);
     }
     #endif
+#endif
     DBG_vPrintf(TRACE_SLEEP, "\n\nAPP: Woken up (CB)");
     DBG_vPrintf(TRACE_SLEEP, "\nAPP: Warm Waking powerStatus = 0x%x\n", u8AHI_PowerStatus());
     DBG_vPrintf(TRACE_SLEEP, "DioWake: 0x%08x\n",diowake);
@@ -365,8 +377,11 @@ PWRM_CALLBACK(Wakeup)
 
     ZTIMER_vWake();
 
+#ifdef SERIAL_COMMS
     UART_vInit();
     UART_vRtsStartFlow();
+#endif
+
     sht3x_i2c_enable();
 
     /* Activate the SleepTask, that would start the SW timer and polling would continue
@@ -389,7 +404,11 @@ PRIVATE void vSetUpWakeUpConditions(bool_t bDeepSleep)
 {
     u32AHI_DioWakeStatus();                         /* clear interrupts */
     //vAHI_DioSetDirection(APP_BUTTONS_DIO_MASK|(1<<DIO_SHT_ALERT),0);   /* Set Power Button(DIO0) and SHT DIO line as Input */
-    vAHI_DioSetDirection(APP_BUTTONS_DIO_MASK|(1<<DIO_SHT_ALERT)|(1<<UART_RXD_DIO),0);   /* Set Power Button(DIO0) and SHT DIO line as Input */
+    vAHI_DioSetDirection(APP_BUTTONS_DIO_MASK|(1<<DIO_SHT_ALERT)
+#if (defined SERIAL_COMMS && defined RX_WAKE)
+    		|(1<<UART_RXD_DIO)
+#endif
+    		,0);   /* Set Power Button(DIO0) and SHT DIO line as Input */
 
 
     DBG_vPrintf(TRACE_SLEEP, "Going to sleep: Buttons:%08x Mask:%08x\n", u32AHI_DioReadInput() & APP_BUTTONS_DIO_MASK_FOR_DEEP_SLEEP, APP_BUTTONS_DIO_MASK_FOR_DEEP_SLEEP);
@@ -402,9 +421,17 @@ PRIVATE void vSetUpWakeUpConditions(bool_t bDeepSleep)
     else
     {
         //vAHI_DioWakeEdge(1<<DIO_SHT_ALERT,APP_BUTTONS_DIO_MASK);       /* Set the wake up DIO Edge - Falling Edge and SHT DIO line Edge - Rising Edge */
-        vAHI_DioWakeEdge(1<<DIO_SHT_ALERT,APP_BUTTONS_DIO_MASK|(1<<UART_RXD_DIO));       /* Set the wake up DIO Edge - Falling Edge and SHT DIO line Edge - Rising Edge */
+        vAHI_DioWakeEdge(1<<DIO_SHT_ALERT,APP_BUTTONS_DIO_MASK
+#if (defined SERIAL_COMMS && defined RX_WAKE)
+        		|(1<<UART_RXD_DIO)
+#endif
+        		);       /* Set the wake up DIO Edge - Falling Edge and SHT DIO line Edge - Rising Edge */
         //vAHI_DioWakeEnable(APP_BUTTONS_DIO_MASK|(1<<DIO_SHT_ALERT),0);     /* Set the Wake up DIO Power Button */
-        vAHI_DioWakeEnable(APP_BUTTONS_DIO_MASK|(1<<DIO_SHT_ALERT)|(1<<UART_RXD_DIO),0);     /* Set the Wake up DIO Power Button */
+        vAHI_DioWakeEnable(APP_BUTTONS_DIO_MASK|(1<<DIO_SHT_ALERT)
+#if (defined SERIAL_COMMS && defined RX_WAKE)
+        		|(1<<UART_RXD_DIO)
+#endif
+        		,0);     /* Set the Wake up DIO Power Button */
 
     }
 }
@@ -431,8 +458,10 @@ PRIVATE void APP_vInitialise(void)
     /* Initialise Protocol Data Unit Manager */
     PDUM_vInit();
 
+#ifdef SERIAL_COMMS
     UART_vInit();
     UART_vRtsStartFlow();
+#endif
 
     ZPS_vExtendedStatusSetCallback(vfExtendedStatusCallBack);
 

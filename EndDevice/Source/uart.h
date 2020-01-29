@@ -36,6 +36,8 @@
 #ifndef  UART_H_INCLUDED
 #define  UART_H_INCLUDED
 
+#ifdef SERIAL_COMMS
+
 /* default to uart 0 */
 #ifndef UART
 #define UART E_AHI_UART_0
@@ -92,6 +94,8 @@ PUBLIC void UART_vSetBaudRate(uint32 u32BaudRate);
 
 #if defined __cplusplus
 }
+#endif
+
 #endif
 
 #endif  /* UART_H_INCLUDED */
