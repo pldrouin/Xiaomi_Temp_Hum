@@ -123,7 +123,6 @@ PRIVATE void vStartPolling(void);
 PRIVATE void vWakeCallBack(void);
 PRIVATE void vStopAllTimers(void);
 PRIVATE void APP_vBdbInit(void);
-PRIVATE void vDeletePDMOnButtonPress(uint8 u8ButtonDIO);
 PRIVATE void vPrintAPSTable(void);
 #if BDB_JOIN_USES_INSTALL_CODE_KEY == TRUE
 PRIVATE void APP_vSetICDerivedLinkKey(void);
@@ -147,6 +146,8 @@ PRIVATE bool_t bFailToJoin = FALSE;
 PRIVATE pwrm_tsWakeTimerEvent    sWake;
 PRIVATE bool_t bFnBInProgress = FALSE;
 PRIVATE PDUM_thAPduInstance hAPduInst;
+PRIVATE bool_t bButtonDown = FALSE;
+PRIVATE uint8_t u8ButtonDownCount = 0;
 /****************************************************************************/
 /***        Exported Functions                                            ***/
 /****************************************************************************/
@@ -200,9 +201,6 @@ PUBLIC void APP_vInitialiseNode(void)
      */
     APP_vBdbInit();
 
-    /* Delete PDM if required */
-    vDeletePDMOnButtonPress(APP_BUTTONS_BUTTON_1);
-
     /* Always initialise any peripherals used by the application
      * HERE
      */
@@ -252,6 +250,7 @@ PUBLIC void APP_vBdbCallback(BDB_tsBdbEvent *psBdbEvent)
         case BDB_EVENT_REJOIN_FAILURE:
             DBG_vPrintf(TRACE_APP_BDB,"APP: BDB_EVENT_REJOIN_FAILURE\n");
             bBDBJoinFailed = TRUE;
+            sht3x_i2c_turnoff();
             break;
 
         case BDB_EVENT_REJOIN_SUCCESS:
@@ -259,6 +258,9 @@ PUBLIC void APP_vBdbCallback(BDB_tsBdbEvent *psBdbEvent)
             eNodeState = E_RUNNING;
             bBDBJoinFailed = FALSE;
             DBG_vPrintf(TRACE_APP_BDB,"APP: BDB_EVENT_REJOIN_SUCCESS\n");
+
+            sht3x_i2c_initialise();
+            sht3x_alert=TRUE;
             break;
 
 
@@ -268,6 +270,8 @@ PUBLIC void APP_vBdbCallback(BDB_tsBdbEvent *psBdbEvent)
             PDM_eSaveRecordData(PDM_ID_APP_END_DEVICE,
                                 &eNodeState,
                                 sizeof(teNodeState));
+            sht3x_i2c_initialise();
+            sht3x_alert=TRUE;
             vStartPolling();
             break;
 
@@ -364,119 +368,39 @@ PUBLIC void APP_vBdbCallback(BDB_tsBdbEvent *psBdbEvent)
  ****************************************************************************/
 PUBLIC void APP_taskEndDevice(void)
 {
-    APP_tsEvent sAppEvent;
-    sAppEvent.eType = APP_E_EVENT_NONE;
-    BDB_teStatus eStatus;
+	APP_tsEvent sAppEvent;
+	sAppEvent.eType = APP_E_EVENT_NONE;
 
-    if (ZQ_bQueueReceive(&APP_msgAppEvents, &sAppEvent) == TRUE)
-    {
-        DBG_vPrintf(TRACE_APP_EVENT, "ZPR: App event %d, NodeState=%d\n", sAppEvent.eType, eNodeState);
+	if (ZQ_bQueueReceive(&APP_msgAppEvents, &sAppEvent) == TRUE) {
+		DBG_vPrintf(TRACE_APP_EVENT, "ZPR: App event %d, NodeState=%d\n", sAppEvent.eType, eNodeState);
 
-        if ( (sAppEvent.eType == APP_E_EVENT_BUTTON_DOWN) ||
-                (sAppEvent.eType == APP_E_EVENT_BUTTON_UP)
-                )
-        {
-            DBG_vPrintf(1, "\nBUTTON PRESS %d",  sAppEvent.uEvent.sButton.u8Button);
-        }
+		if (sAppEvent.eType == APP_E_EVENT_BUTTON_UP) {
+			bButtonDown = FALSE;
+			u8ButtonDownCount = 0;
 
-        if (sAppEvent.eType == APP_E_EVENT_BUTTON_DOWN)
-        {
-#if (defined APP_NTAG_ICODE) || (defined APP_NTAG_AES)
-            if (APP_E_BUTTONS_NFC_FD == sAppEvent.uEvent.sButton.u8Button)
-            {
-                DBG_vPrintf(TRACE_APP_EVENT, "APP_EVENT: NFC_FD DOWN\n");
-                #if APP_NTAG_ICODE
-                APP_vNtagStart(ENDDEVICE_APPLICATION_ENDPOINT);
-                #endif
-                #if APP_NTAG_AES
-                APP_vNtagStart(NFC_NWK_NSC_DEVICE_ZIGBEE_ROUTER_DEVICE);
-                #endif
-            }
-            else
-#endif
-            {
-                if ((eNodeState == E_RUNNING) && (bBDBJoinFailed))
-                {
-                    bBDBJoinFailed = FALSE;
-                    /* trigger a new round of rejoin attempts */
-                    DBG_vPrintf(TRACE_APP_EVENT, "Call BDB vStart\n");
-                    sBDB.sAttrib.bbdbNodeIsOnANetwork = TRUE;
-                    BDB_vStart();
-                }
-                else
-                {
-                    /* reset the sleep counts on key press */
-                    if ((eNodeState == E_RUNNING) && (bFnBInProgress == FALSE))
-                    {
-                        u8KeepAliveTime = KEEP_ALIVETIME;
-                        u8DeepSleepTime = DEEP_SLEEPTIME;
-                    }
-                    else if(eNodeState != E_RUNNING)
-                    {
-                        u8KeepAliveTime = KEEP_ALIVE_FACTORY_NEW;
-                    }
-                    switch(sAppEvent.uEvent.sButton.u8Button)
-                    {
-                        case APP_E_BUTTONS_BUTTON_SW2:  //NwkSteering
-                            eStatus = BDB_eNsStartNwkSteering();
-                            DBG_vPrintf(TRACE_APP_EVENT, "APP-EVT: Switch 2 status %d\n",eStatus);
-                            break;
-                        case APP_E_BUTTONS_BUTTON_SW4:  //FindAndBind
-                            DBG_vPrintf(TRACE_APP_EVENT, "APP-EVT: Switch 4\n");
-                            if ((eNodeState == E_RUNNING) && (bFailToJoin == FALSE))
-                            {
-                                vStartPolling();
-        #ifdef USE_GROUPS
-                                sBDB.sAttrib.u16bdbCommissioningGroupID = GROUP_ID;
-        #endif
-                                eStatus = BDB_eFbTriggerAsInitiator( ENDDEVICE_APPLICATION_ENDPOINT);
-                                u8KeepAliveTime = FIND_AND_BIND_IME;
-                                bFnBInProgress = TRUE;
-                                DBG_vPrintf(TRACE_APP_EVENT, " vEZ_StartFindAndBindGroup status %d \n",eStatus);
-                            }
-                            break;
-                        case APP_E_BUTTONS_BUTTON_1: //DIO8
-                            DBG_vPrintf(TRACE_APP_EVENT, "APP-EVT: DIO8\n");
-                            break;
-                        default:
-                            break;
-                    }
-                }
-            }
-        }
-#if (defined APP_NTAG_ICODE) || (defined APP_NTAG_AES)
-        else if(sAppEvent.eType == APP_E_EVENT_BUTTON_UP)
-        {
-            if (APP_E_BUTTONS_NFC_FD == sAppEvent.uEvent.sButton.u8Button)
-            {
-                DBG_vPrintf(TRACE_APP_EVENT, "APP_EVENT: NFC_FD UP\n");
-                #if APP_NTAG_ICODE
-                APP_vNtagStart(ENDDEVICE_APPLICATION_ENDPOINT);
-                #endif
-                #if APP_NTAG_AES
-                APP_vNtagStart(NFC_NWK_NSC_DEVICE_ZIGBEE_ROUTER_DEVICE);
-                #endif
-            }
-        }
-#endif
-        else if (sAppEvent.eType == APP_E_EVENT_LEAVE_AND_RESET)
-        {
-            if (eNodeState == E_RUNNING)
-            {
-                if (ZPS_eAplZdoLeaveNetwork( 0UL, FALSE, FALSE) != ZPS_E_SUCCESS )
-                  {
-                    APP_vFactoryResetRecords();
-                    vAHI_SwReset();
-                }
-            }
-            else
-            {
-                APP_vFactoryResetRecords();
-                vAHI_SwReset();
-            }
-        }
+		} else if (sAppEvent.eType == APP_E_EVENT_BUTTON_DOWN) {
+			bButtonDown = TRUE;
 
-    }
+			if ((eNodeState == E_RUNNING) && (bBDBJoinFailed)) {
+				bBDBJoinFailed = FALSE;
+				/* trigger a new round of rejoin attempts */
+				DBG_vPrintf(TRACE_APP_EVENT, "Call BDB vStart\n");
+				sBDB.sAttrib.bbdbNodeIsOnANetwork = TRUE;
+				BDB_vStart();
+
+			} else {
+				/* reset the sleep counts on key press */
+
+				if ((eNodeState == E_RUNNING) && (bFnBInProgress == FALSE)) {
+					u8KeepAliveTime = KEEP_ALIVETIME;
+					u8DeepSleepTime = DEEP_SLEEPTIME;
+
+				} else if(eNodeState != E_RUNNING) {
+					u8KeepAliveTime = KEEP_ALIVE_FACTORY_NEW;
+				}
+			}
+		}
+	}
 }
 
 /****************************************************************************
@@ -713,7 +637,7 @@ PUBLIC void APP_vFactoryResetRecords(void)
  ****************************************************************************/
 PRIVATE void vStartPolling(void)
 {
-    u16FastPoll = (uint16)(5/0.25);
+    u16FastPoll = (uint16)(0.5/0.25);
     ZTIMER_eStop(u8TimerPoll);
     if(ZTIMER_eStart(u8TimerPoll, POLL_TIME_FAST) != E_ZTIMER_OK)
     {
@@ -738,9 +662,34 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
     uint32 u32Time = ZTIMER_TIME_MSEC(1000);
     DBG_vPrintf(TRACE_POLL_SLEEP,"Initial activity %d\n",PWRM_u16GetActivityCount());
 
+    if(bButtonDown && !u16FastPoll) {
+    	++u8ButtonDownCount;
+
+    	if(u8ButtonDownCount >= BUTTON_PRESS_RESET_TIME) {
+
+			if (eNodeState == E_RUNNING) {
+				if (ZPS_eAplZdoLeaveNetwork(0UL, FALSE, FALSE) != ZPS_E_SUCCESS ) {
+					DBG_vPrintf(TRACE_APP, "Resetting from running state\n");
+					u8ButtonDownCount=0;
+					APP_vFactoryResetRecords();
+					vAHI_SwReset();
+				}
+
+			} else {
+				DBG_vPrintf(TRACE_APP, "Resetting from state %u\n",eNodeState);
+				u8ButtonDownCount=0;
+				APP_vFactoryResetRecords();
+				vAHI_SwReset();
+			}
+    	}
+    }
+
     switch (eNodeState)
     {
         case E_STARTUP:
+        	DBG_vPrintf(TRACE_APP," Start Steering \n");
+        	BDB_eNsStartNwkSteering();
+
             u32Time = NETWORK_RESTART_TIME;
             DBG_vPrintf(TRACE_POLL_SLEEP, "Poll Sleep Not Running Keep Alive %d\n", u8KeepAliveTime);
 
@@ -759,18 +708,15 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
             DBG_vPrintf(TRACE_POLL_SLEEP, "Poll & Sleep Keepalive %d Deep Sleep %d BDB Rejoin Failed %d Failed to Join %d\n",
                     u8KeepAliveTime, u8DeepSleepTime, bBDBJoinFailed, bFailToJoin);
 
-            if (bBDBJoinFailed)
-            {
+            if (bBDBJoinFailed) {
 
                 /* Manage rejoin attempts,then short wait, then deep sleep */
                 u32Time = ZTIMER_TIME_MSEC(1000);
 
-                if (u8DeepSleepTime)
-                {
+                if (u8DeepSleepTime) {
                     u8DeepSleepTime--;
-                }
-                else
-                {
+
+                } else {
                     vStopAllTimers();
                     DBG_vPrintf(TRACE_POLL_SLEEP, "join failed: go deep... %d\n", PWRM_u16GetActivityCount());
                     PWRM_vInit(E_AHI_SLEEP_DEEP);
@@ -778,17 +724,14 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
                     return;
                 }
 
-            }
-            else
-            {
+            } else { // (!bBDBJoinFailed)
 
-                if (bFailToJoin)
-                {
+                if (bFailToJoin) {
                     /* stop sleeping for the duration of rejoin attempts */
                     u8KeepAliveTime = KEEP_ALIVETIME;
 
                 } else if(sht3x_alert) {
-            		DBG_vPrintf(TRUE, "\nSHT ALERT!\n");
+            		DBG_vPrintf(TRACE_APP, "\nSHT ALERT!\n");
             		/*uint16_t status;
 
             		while(sht3x_read_status(&status)){}
@@ -798,7 +741,7 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
             			uint16_t temp, hum;
 
             			while(sht3x_get_measurements(&temp, &hum)){}
-            			DBG_vPrintf(TRUE, "Values are %i/100 C, %i/100 %%\n",((uint32_t)(temp)*17500)/65535-4500,((uint32_t)hum)*10000/65535);
+            			DBG_vPrintf(TRACE_APP, "Values are %i/100 C, %i/100 %%\n",((uint32_t)(temp)*17500)/65535-4500,((uint32_t)hum)*10000/65535);
 
             			tsZCL_Address destaddr={E_ZCL_AM_SHORT, {0x0000}};
 
@@ -808,13 +751,18 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
 
             			int32_t i;
 
-            			for(i=ATTRREPORTNUMTRIALS-1; i>=0; --i)
+            			for(i=ATTRREPORTNUMTRIALS-1; i>=0; --i) {
             				if(!eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst))
             					break;
+            				DBG_vPrintf(TRACE_APP, "Failed to send temperature measurement\n");
+            			}
 
-            			for(i=ATTRREPORTNUMTRIALS-1; i>=0; --i)
+
+            			for(i=ATTRREPORTNUMTRIALS-1; i>=0; --i) {
             				if(!eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_RELATIVE_HUMIDITY_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst))
             					break;
+            				DBG_vPrintf(TRACE_APP, "Failed to send relative humidity measurement\n");
+            			}
 
             		/*}*/
                 	sht3x_alert=FALSE;
@@ -822,8 +770,7 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
                 }
 
                 /* Manage polling, then warm sleep, then deep sleep */
-                if(u8KeepAliveTime == 0)
-                {
+                if(u8KeepAliveTime == 0) {
 
                 	vStopAllTimers();
                 	//if (u8DeepSleepTime)
@@ -844,37 +791,32 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
                     DBG_vPrintf(TRACE_POLL_SLEEP,"Activity %d\n",PWRM_u16GetActivityCount());
                     return;
 
-                }
-                else
-                {
+                } else { // (u8KeepAliveTime>0)
                    uint8 u8PStatus;
-                   if (bBDBJoinFailed == FALSE)
-                   {
+
+                   if (bBDBJoinFailed == FALSE) {
                 	   DBG_vPrintf(TRACE_POLL_SLEEP, "Data polling...\n");
                        u8PStatus = ZPS_eAplZdoPoll();
-                       if ( u8PStatus)
-                       {
+
+                       if ( u8PStatus) {
                            DBG_vPrintf(TRACE_POLL_SLEEP, "\nPOLL status %d\n", u8PStatus);
                        }
                    }
 
-                   if (u16FastPoll)
-                   {
+                   if (u16FastPoll) {
                        u16FastPoll--;
                        u32Time = POLL_TIME_FAST;
-                       if (u16FastPoll == 0)
-                       {
+
+                       if (u16FastPoll == 0) {
                            DBG_vPrintf(TRACE_POLL_SLEEP, "\nStop fast poll");
                        }
-                   }
-                   else
-                   {
+
+                   } else { // (!u16FastPoll)
                        /* Decrement the keep alive in the normal operation mode
                         * Not in active scan mode or while fast polling
                         */
 
-                       if(0 < u8KeepAliveTime)
-                       {
+                       if(0 < u8KeepAliveTime) {
                            u8KeepAliveTime--;
                        }
                        /*Start Poll Timer to continue normal polling */
@@ -1038,49 +980,6 @@ PRIVATE void APP_vBdbInit(void)
     ZTIMER_eStart(u8TimerPoll, ZTIMER_TIME_MSEC(1000) );
     sInitArgs.hBdbEventsMsgQ = &APP_msgBdbEvents;
     BDB_vInit(&sInitArgs);
-}
-/****************************************************************************
- *
- * NAME: vDeletePDMOnButtonPress
- *
- * DESCRIPTION:
- * PDM context clearing on button press
- *
- * RETURNS:
- * void
- *
- ****************************************************************************/
-PRIVATE void vDeletePDMOnButtonPress(uint8 u8ButtonDIO)
-{
-    bool_t bDeleteRecords = FALSE;
-    uint32 u32Buttons = u32AHI_DioReadInput() & (1 << u8ButtonDIO);
-    if (u32Buttons == 0)
-    {
-        bDeleteRecords = TRUE;
-    }
-    else
-    {
-        bDeleteRecords = FALSE;
-    }
-    /* If required, at this point delete the network context from flash, perhaps upon some condition
-     * For example, check if a button is being held down at reset, and if so request the Persistent
-     * Data Manager to delete all its records:
-     * e.g. bDeleteRecords = vCheckButtons();
-     * Alternatively, always call PDM_vDeleteAllDataRecords() if context saving is not required.
-     */
-    if(bDeleteRecords)
-    {
-        if (ZPS_E_SUCCESS !=  ZPS_eAplZdoLeaveNetwork(0, FALSE,FALSE)) {
-            /* Leave failed,so just reset everything */
-            DBG_vPrintf(TRACE_APP,"Deleting the PDM\n");
-            APP_vFactoryResetRecords();
-            while (u32Buttons == 0)
-            {
-                u32Buttons = u32AHI_DioReadInput() & (1 << u8ButtonDIO);
-            }
-            vAHI_SwReset();
-        }
-    }
 }
 
 #if BDB_JOIN_USES_INSTALL_CODE_KEY == TRUE

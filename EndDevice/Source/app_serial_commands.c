@@ -207,29 +207,10 @@ PRIVATE void vProcessCommand(void)
     APP_tsEvent sButtonEvent;
     sButtonEvent.eType = APP_E_EVENT_NONE;
 
-    if (0 == stricmp((char*)token, "toggle")) //Used
-    {
-        DBG_vPrintf(TRACE_SERIAL, "Toggle\n");
-        sButtonEvent.eType = APP_E_EVENT_BUTTON_DOWN;
-        sButtonEvent.uEvent.sButton.u8Button = APP_E_BUTTONS_BUTTON_SW1;
-    }
-    else if (0 == stricmp((char*)token, "steer")) //Used
+    if (0 == stricmp((char*)token, "steer")) //Used
     {
         DBG_vPrintf(TRACE_SERIAL, "Steer\n");
-        sButtonEvent.eType = APP_E_EVENT_BUTTON_DOWN;
-        sButtonEvent.uEvent.sButton.u8Button = APP_E_BUTTONS_BUTTON_SW2;
-    }
-    else if (0 == stricmp((char*)token, "form"))
-    {
-        DBG_vPrintf(TRACE_SERIAL, "Form\n");
-        sButtonEvent.eType = APP_E_EVENT_BUTTON_DOWN;
-        sButtonEvent.uEvent.sButton.u8Button = APP_E_BUTTONS_BUTTON_1;
-    }
-    else if (0 == stricmp((char*)token, "find")) //Used
-    {
-        DBG_vPrintf(TRACE_SERIAL, "Find\n");
-        sButtonEvent.eType = APP_E_EVENT_BUTTON_DOWN;
-        sButtonEvent.uEvent.sButton.u8Button = APP_E_BUTTONS_BUTTON_SW4;
+        BDB_eNsStartNwkSteering();
     }
     else if (0 == stricmp((char*)token, "bind")) //Used
         {
@@ -360,10 +341,10 @@ PRIVATE void vProcessCommand(void)
     	   uint32_t oldval = u32AHI_DioReadInput() & (1<<DIO_SHT_VDD);
     	   uint32_t newval = (~oldval) & (1<<DIO_SHT_VDD);
 
-    	   if(oldval) sht3x_i2c_disable_nocheck();
+    	   if(oldval) sht3x_i2c_turnoff();
     	   vAHI_DioSetOutput(newval,oldval);
 
-    	   if(newval) sht3x_i2c_configure_nocheck();
+    	   if(newval) sht3x_i2c_initialise();
            DBG_vPrintf(TRUE, "SHT power set to %i\n",newval>>DIO_SHT_VDD);
     }
 

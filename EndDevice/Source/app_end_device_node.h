@@ -45,12 +45,14 @@
 /****************************************************************************/
 #define NUMBER_DEVICE_TO_BE_DISCOVERED 8 // Should be same as Binding table size
 
-#define KEEP_ALIVE_FACTORY_NEW  (45)
-#define KEEP_ALIVETIME (10)
+#define KEEP_ALIVE_FACTORY_NEW  (10)
+#define KEEP_ALIVETIME (5)
 #define FIND_AND_BIND_IME (182)
 #define DEEP_SLEEPTIME (10)
 #define SLEEP_DURATION_MS (3480000)
 #define SLEEP_TIMER_TICKS_PER_MS (32)
+
+#define BUTTON_PRESS_RESET_TIME (5)
 
 #define NEVER_DEEP_SLEEP   FALSE
 //#define NEVER_DEEP_SLEEP   TRUE

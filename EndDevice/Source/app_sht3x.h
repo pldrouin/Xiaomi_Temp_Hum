@@ -34,10 +34,10 @@ inline static int sht3x_read_alert_high_clear(uint16_t* value){return sht3x_read
 inline static int sht3x_read_alert_low_set(uint16_t* value){return sht3x_read_single_value(0xE1, 0x02, value);}
 inline static int sht3x_read_alert_low_clear(uint16_t* value){return sht3x_read_single_value(0xE1, 0x09, value);}
 int sht3x_get_measurements(uint16_t* temp, uint16_t* hum);
-bool_t sht3x_i2c_configure();
+bool_t sht3x_i2c_initialise();
+bool_t sht3x_i2c_enable();
 bool_t sht3x_i2c_disable();
-inline static void sht3x_i2c_configure_nocheck(){vAHI_SiMasterConfigure(TRUE,FALSE,63); sht3x_i2c_clear_alerts(); while(sht3x_send_command(0x20,0x32,FALSE)){}}
-inline static void sht3x_i2c_disable_nocheck(){vAHI_SiMasterDisable();}
+bool_t sht3x_i2c_turnoff();
 
 inline static void crc8_init(uint8_t* crc){*crc = 0xFF;}
 void crc8_update(uint8_t* crc, const uint8_t byte);

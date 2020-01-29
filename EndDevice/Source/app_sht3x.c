@@ -17,6 +17,8 @@
 
 bool_t sht3x_alert=FALSE;
 
+PRIVATE bool_t sht3x_active=FALSE;
+
 static const uint8_t crc8_table[] = {
   0, 0x31, 0x62, 0x53, 0xC4, 0xF5, 0xA6, 0x97, 0xB9,
   0x88, 0xDB, 0xEA, 0x7D, 0x4C, 0x1F, 0x2E, 0x43, 0x72,
@@ -67,21 +69,52 @@ void sht3x_initialise()
 	//vAHI_DioInterruptEnable(1<<DIO_SHT_ALERT, 0);
 }
 
-bool_t sht3x_i2c_configure()
+bool_t sht3x_i2c_initialise()
 {
-	if(u32AHI_DioReadInput() & (1<<DIO_SHT_VDD)) {
+	if(!sht3x_active) {
+		DBG_vPrintf(TRACE_SI, "Initialising SHT3X\n");
+		vAHI_DioSetOutput(1<<DIO_SHT_VDD,0);
 		vAHI_SiMasterConfigure(TRUE,FALSE,63);
+
+		while(sht3x_send_command(0x20,0x32,FALSE)){}
+		sht3x_active = TRUE;
 		return TRUE;
 
 	} else return FALSE;
 }
 
+bool_t sht3x_i2c_enable()
+{
+	if(sht3x_active) {
+		DBG_vPrintf(TRACE_SI, "Enabling SHT3X\n");
+		vAHI_SiMasterConfigure(TRUE,FALSE,63);
+
+		while(sht3x_send_command(0x20,0x32,FALSE)){}
+		return TRUE;
+
+	} else return FALSE;
+}
 
 bool_t sht3x_i2c_disable()
 {
-	if(u32AHI_DioReadInput() & (1<<DIO_SHT_VDD)) {
-			vAHI_SiMasterDisable();
-			return TRUE;
+	if(sht3x_active) {
+		DBG_vPrintf(TRACE_SI, "Disabling SHT3X\n");
+
+		while(sht3x_i2c_clear_alerts());
+		vAHI_SiMasterDisable();
+		return TRUE;
+
+	} else return FALSE;
+}
+
+bool_t sht3x_i2c_turnoff()
+{
+	if(sht3x_active) {
+		DBG_vPrintf(TRACE_SI, "Turning off SHT3X\n");
+		vAHI_SiMasterDisable();
+		vAHI_DioSetOutput(0,1<<DIO_SHT_VDD);
+		sht3x_active = FALSE;
+		return TRUE;
 
 	} else return FALSE;
 }
@@ -256,8 +289,8 @@ int sht3x_get_measurements(uint16_t* temp, uint16_t* hum)
 
 			if(!sht3x_write_alert_limit(0x16, *hum, *temp) &&  //High clear
 					!sht3x_write_alert_limit(0x0B, *hum, *temp) &&   //Low clear
-					!sht3x_write_alert_limit(0x1D, *hum+640, *temp+160) && //Minimum for hum is 512, temp is 128. Add 1/4*LSB for average alarm with 0.75*LSB delta, from 0.25*LSB delta to 1.25*LSB delta.
-					!sht3x_write_alert_limit(0x00, *hum-640, *temp-160)) { //Remove 1.25*LSB for average alarm with 0.75*LSB delta, from 0.25*LSB delta to 1.25*LSB delta.
+					!sht3x_write_alert_limit(0x1D, *hum+1024, *temp+160) && //Minimum for hum is 512, temp is 128. Add 1/4*LSB for average alarm with 0.75*LSB delta, from 0.25*LSB delta to 1.25*LSB delta.
+					!sht3x_write_alert_limit(0x00, *hum-1024, *temp-160)) { //Remove 1.25*LSB for average alarm with 0.75*LSB delta, from 0.25*LSB delta to 1.25*LSB delta.
 
 				while(sht3x_send_command(0x20,0x32,FALSE)){}
 

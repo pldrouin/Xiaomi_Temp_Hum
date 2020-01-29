@@ -273,15 +273,13 @@ PWRM_CALLBACK(PreSleep)
     /* Set up wake up dio input */
     vSetUpWakeUpConditions(bDeepSleep);
 
-    while(sht3x_i2c_clear_alerts());
+    sht3x_i2c_disable();
 
     /* Wait for the UART to complete any transmission */
     DBG_vUartFlush();
 
     /* Disable UART (if enabled) */
     vAHI_UartDisable(E_AHI_UART_0);
-
-    sht3x_i2c_disable();
 
     vAHI_WatchdogStop();
 }
@@ -314,18 +312,25 @@ PWRM_CALLBACK(Wakeup)
 #endif
 
     uint32_t diowake=u32AHI_DioWakeStatus();
+    bool_t button_wake = FALSE;
 
-    if(diowake&(1<<UART_RXD_DIO)) {
+    if(diowake&(APP_BUTTONS_DIO_MASK)) {
+    	u8KeepAliveTime = KEEP_ALIVETIME;
+    	u8DeepSleepTime = DEEP_SLEEPTIME;
+    	button_wake=TRUE;
+    	sht3x_alert=TRUE;
+
+    } else if(diowake&(1<<UART_RXD_DIO)) {
     	u8KeepAliveTime = KEEP_ALIVETIME;
     	u8DeepSleepTime = DEEP_SLEEPTIME;
 
-    }
+    } else sht3x_alert=TRUE;
 
-    if(diowake&(1<<DIO_SHT_ALERT)) {
+   /* if(diowake&(1<<DIO_SHT_ALERT)) {
     	//u8KeepAliveTime = KEEP_ALIVETIME;
     	//u8DeepSleepTime = DEEP_SLEEPTIME;
     	sht3x_alert=TRUE;
-    }
+    }*/
 
     vAHI_DioInterruptEnable(0, (1<<UART_RXD_DIO));
 
@@ -342,6 +347,9 @@ PWRM_CALLBACK(Wakeup)
     DBG_vPrintf(TRACE_SLEEP, "\n\nAPP: Woken up (CB)");
     DBG_vPrintf(TRACE_SLEEP, "\nAPP: Warm Waking powerStatus = 0x%x\n", u8AHI_PowerStatus());
     DBG_vPrintf(TRACE_SLEEP, "DioWake: 0x%08x\n",diowake);
+    DBG_vPrintf(TRACE_SLEEP, "SHT3X alert: %u\n",sht3x_alert);
+    DBG_vPrintf(TRACE_SLEEP, "Button wake: %u\n",button_wake);
+
 
     /* If the power status is OK and RAM held while sleeping
      * restore the MAC settings
@@ -359,12 +367,13 @@ PWRM_CALLBACK(Wakeup)
 
     UART_vInit();
     UART_vRtsStartFlow();
-    sht3x_i2c_configure();
+    sht3x_i2c_enable();
 
     /* Activate the SleepTask, that would start the SW timer and polling would continue
      * */
     APP_vStartUpHW();
 
+    if(button_wake) APP_cbTimerButtonScan(NULL);
 }
 /****************************************************************************
  *
@@ -429,8 +438,6 @@ PRIVATE void APP_vInitialise(void)
 
     /* Initialise application */
     APP_vInitialiseNode();
-
-    if(sht3x_i2c_configure()) while(sht3x_send_command(0x20,0x32,FALSE)){}
 }
 
 /****************************************************************************

@@ -189,7 +189,7 @@
 			<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 		</cconfiguration>
 		<cconfiguration id="0.876190861.2112005733.993807050.1593157031.81810401.2121998481.1885790271">
-			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="0.876190861.2112005733.993807050.1593157031.81810401.2121998481.1885790271" moduleId="org.eclipse.cdt.core.settings" name="EndDevice, JN5169, DONGLE">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="0.876190861.2112005733.993807050.1593157031.81810401.2121998481.1885790271" moduleId="org.eclipse.cdt.core.settings" name="EndDevice, JN5169">
 				<externalSettings/>
 				<extensions>
 					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
@@ -201,11 +201,11 @@
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactName="JN-AN-1133-ZigBee-Pro-Lightswitch" buildProperties="" description="" id="0.876190861.2112005733.993807050.1593157031.81810401.2121998481.1885790271" name="EndDevice, JN5169, DONGLE" parent="org.eclipse.cdt.build.core.prefbase.cfg">
+				<configuration artifactName="JN-AN-1133-ZigBee-Pro-Lightswitch" buildProperties="" description="" id="0.876190861.2112005733.993807050.1593157031.81810401.2121998481.1885790271" name="EndDevice, JN5169" parent="org.eclipse.cdt.build.core.prefbase.cfg">
 					<folderInfo id="0.876190861.2112005733.993807050.1593157031.81810401.2121998481.1885790271." name="/" resourcePath="">
 						<toolChain id="com.beyondsemi.toolchain.gnu.ba.elf.base.1067455534" name="BA ELF GNU toolchain" superClass="com.beyondsemi.toolchain.gnu.ba.elf.base">
 							<targetPlatform binaryParser="org.eclipse.cdt.core.ELF" id="com.beyondsemi.target.gnu.platform.ba.elf.210790204" superClass="com.beyondsemi.target.gnu.platform.ba.elf"/>
-							<builder arguments="JENNIC_CHIP_FAMILY=JN516x JENNIC_CHIP=JN5169 DR=DONGLE GROUPS=0 ICODES=0" buildPath="${ProjDirPath}/../EndDevice/Build" command="make" id="com.beyondsemi.builder.cdt.gnu.497986172" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="com.beyondsemi.builder.cdt.gnu"/>
+							<builder arguments="JENNIC_CHIP_FAMILY=JN516x JENNIC_CHIP=JN5169 GROUPS=0 ICODES=0" buildPath="${ProjDirPath}/../EndDevice/Build" command="make" id="com.beyondsemi.builder.cdt.gnu.497986172" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="com.beyondsemi.builder.cdt.gnu"/>
 							<tool id="com.beyondsemi.tool.gnu.ba.elf.compiler.c.base.1388206995" name="BA ELF GNU C compiler" superClass="com.beyondsemi.tool.gnu.ba.elf.compiler.c.base">
 								<inputType id="com.beyondsemi.base.ba.elf.c.compiler.input.2018671930" superClass="com.beyondsemi.base.ba.elf.c.compiler.input"/>
 								<inputType id="com.beyondsemi.assembler.macro.input.1657048510" superClass="com.beyondsemi.assembler.macro.input"/>
@@ -312,12 +312,16 @@
 		<configuration configurationName="ColorTempTunableWhiteLight">
 			<resource resourceType="PROJECT" workspacePath="/ZSL-Test-App"/>
 		</configuration>
+		<configuration configurationName="EndDevice, JN5169">
+			<resource resourceType="PROJECT" workspacePath="/Xiaomi_Temp_Hum_Zigbee3_Base_Device"/>
+		</configuration>
 		<configuration configurationName="EndDevice, JN5169, DONGLE">
 			<resource resourceType="PROJECT" workspacePath="/Xiaomi_Temp_Hum_Zigbee3_Base_Device"/>
 		</configuration>
 		<configuration configurationName="Router_OnOffLight">
 			<resource resourceType="PROJECT" workspacePath="/Xiaomi_Temp_Hum_Zigbee3_Base_Device"/>
 		</configuration>
+		<configuration configurationName="Router, JN5169, DONGLE"/>
 		<configuration configurationName="DimmableLight 3">
 			<resource resourceType="PROJECT" workspacePath="/ZSL-Test-App"/>
 		</configuration>
@@ -355,16 +359,16 @@
 		<configuration configurationName="ColorDimmableLight 1- GP">
 			<resource resourceType="PROJECT" workspacePath="/ZSL-Test-App"/>
 		</configuration>
-		<configuration configurationName="LightSensor">
-			<resource resourceType="PROJECT" workspacePath="/ZSL-Test-App"/>
-		</configuration>
 		<configuration configurationName="RemoteControl">
 			<resource resourceType="PROJECT" workspacePath="/ZSL-Test-App"/>
 		</configuration>
-		<configuration configurationName="Router"/>
+		<configuration configurationName="LightSensor">
+			<resource resourceType="PROJECT" workspacePath="/ZSL-Test-App"/>
+		</configuration>
 		<configuration configurationName="ColorDimmerSwitch">
 			<resource resourceType="PROJECT" workspacePath="/ZSL-Test-App"/>
 		</configuration>
+		<configuration configurationName="Router"/>
 		<configuration configurationName="Coordinator, JN5169, DONGLE"/>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
