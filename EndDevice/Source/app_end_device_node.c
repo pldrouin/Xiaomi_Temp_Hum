@@ -145,7 +145,6 @@ PRIVATE uint16 u16FastPoll;
 PRIVATE bool_t bBDBJoinFailed = FALSE;
 PRIVATE bool_t bFailToJoin = FALSE;
 PRIVATE pwrm_tsWakeTimerEvent    sWake;
-PRIVATE bool_t bFnBInProgress = FALSE;
 PRIVATE PDUM_thAPduInstance hAPduInst;
 PRIVATE bool_t bButtonDown = FALSE;
 PRIVATE uint8_t u8ButtonDownCount = 0;
@@ -339,7 +338,6 @@ PUBLIC void APP_vBdbCallback(BDB_tsBdbEvent *psBdbEvent)
             {
                 u8NoQueryCount = 0;
                 BDB_vFbExitAsInitiator();
-                bFnBInProgress = FALSE;
                 u8KeepAliveTime = KEEP_ALIVETIME;
             }
             else
@@ -350,7 +348,6 @@ PUBLIC void APP_vBdbCallback(BDB_tsBdbEvent *psBdbEvent)
 
         case BDB_EVENT_FB_TIMEOUT:
             DBG_vPrintf(TRACE_APP_BDB,"ERR: TimeOut\n");
-            bFnBInProgress = FALSE;
             u8KeepAliveTime = KEEP_ALIVETIME;
             break;
 
@@ -393,17 +390,7 @@ PUBLIC void APP_taskEndDevice(void)
 				sBDB.sAttrib.bbdbNodeIsOnANetwork = TRUE;
 				BDB_vStart();
 
-			} else {
-				/* reset the sleep counts on key press */
-
-				if ((eNodeState == E_RUNNING) && (bFnBInProgress == FALSE)) {
-					u8KeepAliveTime = KEEP_ALIVETIME;
-					u8DeepSleepTime = DEEP_SLEEPTIME;
-
-				} else if(eNodeState != E_RUNNING) {
-					u8KeepAliveTime = KEEP_ALIVE_FACTORY_NEW;
-				}
-			}
+			} else led_pulse();
 		}
 	}
 }
@@ -672,7 +659,7 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
 
     	if(u8ButtonDownCount == BUTTON_PRESS_RESET_TIME-1) led_device_reset();
 
-    	if(u8ButtonDownCount >= BUTTON_PRESS_RESET_TIME) {
+    	else if(u8ButtonDownCount >= BUTTON_PRESS_RESET_TIME) {
 
 			if (eNodeState == E_RUNNING) {
 				if (ZPS_eAplZdoLeaveNetwork(0UL, FALSE, FALSE) != ZPS_E_SUCCESS ) {
@@ -757,7 +744,7 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
             			//PDUM_eAPduInstanceSetPayloadSize(hAPduInst, 0);
 
             			int32_t i;
-            			led_meas_send();
+            			//led_pulse();
 
             			for(i=ATTRREPORTNUMTRIALS-1; i>=0; --i) {
             				if(!eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst))

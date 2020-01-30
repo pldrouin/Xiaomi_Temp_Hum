@@ -14,7 +14,7 @@
 #endif
 
 PRIVATE const uint16_t led_connect_seq[]={100, 250, 100, 250, 100, 0};
-PRIVATE const uint16_t led_meas_send_seq[]={100, 0};
+PRIVATE const uint16_t led_pulse_seq[]={100, 0};
 PRIVATE const uint16_t led_device_reset_seq[]={1000, 0};
 
 uint8 u8TimerLED;
@@ -55,11 +55,11 @@ PUBLIC void led_connect()
     ZTIMER_eStart(u8TimerLED, ZTIMER_TIME_MSEC(*tsLed.seq));
 }
 
-PUBLIC void led_meas_send()
+PUBLIC void led_pulse()
 {
     ZTIMER_eStop(u8TimerLED);
     tsLed.state=TRUE;
-    tsLed.seq=led_meas_send_seq;
+    tsLed.seq=led_pulse_seq;
     vAHI_DioSetOutput(0,DIO_LED_PIN);
     ZTIMER_eStart(u8TimerLED, ZTIMER_TIME_MSEC(*tsLed.seq));
 }

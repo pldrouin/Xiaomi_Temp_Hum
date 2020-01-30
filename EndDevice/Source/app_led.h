@@ -26,7 +26,7 @@ extern tsLedStruct tsLed;
 PUBLIC void led_initialise();
 PUBLIC void APP_cbTimerLED(void *pvParam);
 PUBLIC void led_connect();
-PUBLIC void led_meas_send();
+PUBLIC void led_pulse();
 PUBLIC void led_device_reset();
 
 #endif /* APP_SHT3X_H_ */
