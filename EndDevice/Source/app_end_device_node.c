@@ -802,6 +802,7 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
 
             				sThermostatDevice.sTemperatureMeasurementServerCluster.i16MeasuredValue=temp*17500/65535-4500;
             				sThermostatDevice.sRelativeHumidityMeasurementServerCluster.u16MeasuredValue=hum*10000/65535;
+
             				//PDUM_eAPduInstanceSetPayloadSize(hAPduInst, 0);
 
             				/*int8_t i;
@@ -966,7 +967,7 @@ PRIVATE void vStopAllTimers(void)
 {
     ZTIMER_eStop(u8TimerPoll);
     ZTIMER_eStop(u8TimerZCL);
-    ZTIMER_eStop(u8TimerId);
+    //ZTIMER_eStop(u8TimerId);
 
 }
 

@@ -108,7 +108,7 @@ extern void vISR_SystemController(uint32 u32DeviceId, uint32 u32BitMap);
 
 PUBLIC uint8 u8TimerButtonScan;
 PUBLIC uint8 u8TimerPoll;
-PUBLIC uint8 u8TimerId;
+//PUBLIC uint8 u8TimerId;
 PUBLIC uint8 u8TimerZCL;
 #if (defined APP_NTAG_ICODE) || (defined APP_NTAG_AES)
 PUBLIC uint8 u8TimerNtag;
@@ -247,7 +247,7 @@ PUBLIC void APP_vInitResources(void)
     ZTIMER_eOpen(&u8TimerButtonScan,    APP_cbTimerButtonScan,  NULL, ZTIMER_FLAG_PREVENT_SLEEP);
     ZTIMER_eOpen(&u8TimerLED,    		APP_cbTimerLED,  		&tsLed, ZTIMER_FLAG_PREVENT_SLEEP);
     ZTIMER_eOpen(&u8TimerPoll,          APP_cbTimerPoll,        NULL, ZTIMER_FLAG_PREVENT_SLEEP);
-    ZTIMER_eOpen(&u8TimerId,            APP_cbTimerId,          NULL, ZTIMER_FLAG_PREVENT_SLEEP);
+    //ZTIMER_eOpen(&u8TimerId,            APP_cbTimerId,          NULL, ZTIMER_FLAG_PREVENT_SLEEP);
     ZTIMER_eOpen(&u8TimerZCL,           APP_cbTimerZclTick,     NULL, ZTIMER_FLAG_PREVENT_SLEEP);
 #if (defined APP_NTAG_ICODE) || (defined APP_NTAG_AES)
     ZTIMER_eOpen(&u8TimerNtag,          APP_cbNtagTimer,        NULL, ZTIMER_FLAG_PREVENT_SLEEP);

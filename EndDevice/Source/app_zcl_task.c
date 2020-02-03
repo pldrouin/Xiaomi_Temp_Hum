@@ -80,11 +80,11 @@
 /****************************************************************************/
 PRIVATE void APP_ZCL_cbGeneralCallback(tsZCL_CallBackEvent *psEvent);
 PRIVATE void APP_ZCL_cbEndpointCallback(tsZCL_CallBackEvent *psEvent);
-PRIVATE void APP_vHandleClusterCustomCommands(tsZCL_CallBackEvent *psEvent);
-PRIVATE void APP_vHandleClusterUpdate(tsZCL_CallBackEvent *psEvent);
+//PRIVATE void APP_vHandleClusterCustomCommands(tsZCL_CallBackEvent *psEvent);
+//PRIVATE void APP_vHandleClusterUpdate(tsZCL_CallBackEvent *psEvent);
 PRIVATE void APP_vZCL_DeviceSpecific_Init(void);
-PRIVATE void vStartEffect(uint8 u8Effect);
-PRIVATE void vHandleIdentifyRequest(uint16 u16Duration);
+//PRIVATE void vStartEffect(uint8 u8Effect);
+//PRIVATE void vHandleIdentifyRequest(uint16 u16Duration);
 /****************************************************************************/
 /***        Exported Variables                                            ***/
 /****************************************************************************/
@@ -126,6 +126,7 @@ PUBLIC void APP_ZCL_vInitialise(void)
     eZCL_Status =  eHA_RegisterThermostatEndPoint(ENDDEVICE_APPLICATION_ENDPOINT,
                                                          &APP_ZCL_cbEndpointCallback,
                                                          &sThermostatDevice);
+
     if (eZCL_Status != E_ZCL_SUCCESS)
     {
             DBG_vPrintf(TRACE_ZCL, "Error: eHA_RegisterThermostatEndPoint:%d\r\n", eZCL_Status);
@@ -146,10 +147,10 @@ PUBLIC void APP_ZCL_vInitialise(void)
  * void
  *
  ****************************************************************************/
-PUBLIC void APP_ZCL_vSetIdentifyTime(uint16 u16Time)
+/*PUBLIC void APP_ZCL_vSetIdentifyTime(uint16 u16Time)
 {
     sThermostatDevice.sIdentifyServerCluster.u16IdentifyTime = u16Time;
-}
+}*/
 
 
 /****************************************************************************
@@ -202,7 +203,7 @@ PUBLIC void APP_ZCL_vEventHandler(ZPS_tsAfEvent *psStackEvent)
     tsZCL_CallBackEvent sCallBackEvent;
     sCallBackEvent.pZPSevent = psStackEvent;
 
-    DBG_vPrintf(TRACE_ZCL, "\nZCL_Task endpoint event:%d", psStackEvent->eType);
+    DBG_vPrintf(TRACE_ZCL, "\nZCL_Task endpoint event:%d\n", psStackEvent->eType);
     sCallBackEvent.eEventType = E_ZCL_CBET_ZIGBEE_EVENT;
     vZCL_EventHandler(&sCallBackEvent);
 
@@ -291,7 +292,7 @@ PRIVATE void APP_ZCL_cbGeneralCallback(tsZCL_CallBackEvent *psEvent)
  ****************************************************************************/
 PRIVATE void APP_ZCL_cbEndpointCallback(tsZCL_CallBackEvent *psEvent)
 {
-    switch (psEvent->eEventType)
+/*    switch (psEvent->eEventType)
     {
         case E_ZCL_CBET_UNHANDLED_EVENT:
         case E_ZCL_CBET_READ_ATTRIBUTES_RESPONSE:
@@ -310,18 +311,18 @@ PRIVATE void APP_ZCL_cbEndpointCallback(tsZCL_CallBackEvent *psEvent)
 
         case E_ZCL_CBET_CLUSTER_CUSTOM:
             DBG_vPrintf(TRACE_ZCL, "EP EVT: Custom %04x\r\n", psEvent->uMessage.sClusterCustomMessage.u16ClusterId);
-            APP_vHandleClusterCustomCommands(psEvent);
+            //APP_vHandleClusterCustomCommands(psEvent);
             break;
 
         case E_ZCL_CBET_CLUSTER_UPDATE:
             DBG_vPrintf(TRACE_ZCL, "Update Id %04x\n", psEvent->psClusterInstance->psClusterDefinition->u16ClusterEnum);
-            APP_vHandleClusterUpdate(psEvent);
+            //APP_vHandleClusterUpdate(psEvent);
             break;
 
         default:
             DBG_vPrintf(TRACE_ZCL, "EP EVT: Invalid event type (%d) in APP_ZCL_cbEndpointCallback\r\n", psEvent->eEventType);
             break;
-    }
+    }*/
 }
 /****************************************************************************
  *
@@ -334,7 +335,7 @@ PRIVATE void APP_ZCL_cbEndpointCallback(tsZCL_CallBackEvent *psEvent)
  * void
  *
  ****************************************************************************/
-PRIVATE void APP_vHandleClusterCustomCommands(tsZCL_CallBackEvent *psEvent)
+/*PRIVATE void APP_vHandleClusterCustomCommands(tsZCL_CallBackEvent *psEvent)
 {
     switch (psEvent->uMessage.sClusterCustomMessage.u16ClusterId)
     {
@@ -365,7 +366,7 @@ PRIVATE void APP_vHandleClusterCustomCommands(tsZCL_CallBackEvent *psEvent)
         {
             tsCLD_IdentifyCallBackMessage *psCallBackMessage = (tsCLD_IdentifyCallBackMessage*)psEvent->uMessage.sClusterCustomMessage.pvCustomData;
             DBG_vPrintf(TRACE_ZCL, "- for identify cluster\r\n");
-            /* provide callback to BDB handler for identify query response on initiator*/
+            // provide callback to BDB handler for identify query response on initiator
             if(psEvent->psClusterInstance->bIsServer == FALSE)
             {
                 tsBDB_ZCLEvent  sBDBZCLEvent;
@@ -401,7 +402,7 @@ PRIVATE void APP_vHandleClusterCustomCommands(tsZCL_CallBackEvent *psEvent)
             DBG_vPrintf(TRACE_ZCL, "- for unknown cluster %d\r\n", psEvent->uMessage.sClusterCustomMessage.u16ClusterId);
             break;
     }
-}
+}*/
 
 /****************************************************************************
  *
@@ -414,7 +415,7 @@ PRIVATE void APP_vHandleClusterCustomCommands(tsZCL_CallBackEvent *psEvent)
  * void
  *
  ****************************************************************************/
-PRIVATE void APP_vHandleClusterUpdate(tsZCL_CallBackEvent *psEvent)
+/*PRIVATE void APP_vHandleClusterUpdate(tsZCL_CallBackEvent *psEvent)
 {
     if (psEvent->psClusterInstance->psClusterDefinition->u16ClusterEnum == GENERAL_CLUSTER_ID_IDENTIFY)
     {
@@ -423,7 +424,7 @@ PRIVATE void APP_vHandleClusterUpdate(tsZCL_CallBackEvent *psEvent)
             vReloadSleepTimers();
         #endif
     }
-}
+}*/
 
 /****************************************************************************
  *
@@ -456,7 +457,7 @@ PRIVATE void APP_vZCL_DeviceSpecific_Init(void)
  * RETURNS: void
  *
  ****************************************************************************/
-PRIVATE void vStartEffect(uint8 u8Effect)
+/*PRIVATE void vStartEffect(uint8 u8Effect)
 {
     switch (u8Effect) {
         case E_CLD_IDENTIFY_EFFECT_BLINK:
@@ -481,7 +482,7 @@ PRIVATE void vStartEffect(uint8 u8Effect)
             break;
     }
     vHandleIdentifyRequest( sThermostatDevice.sIdentifyServerCluster.u16IdentifyTime);
-}
+}*/
 
 /****************************************************************************
  *
@@ -495,7 +496,7 @@ PRIVATE void vStartEffect(uint8 u8Effect)
  * void
  *
  ****************************************************************************/
-PRIVATE void vHandleIdentifyRequest(uint16 u16Duration)
+/*PRIVATE void vHandleIdentifyRequest(uint16 u16Duration)
 {
     ZTIMER_eStop(u8TimerId);
     if (u16Duration == 0)
@@ -507,7 +508,7 @@ PRIVATE void vHandleIdentifyRequest(uint16 u16Duration)
         ZTIMER_eStart(u8TimerId, ZTIMER_TIME_MSEC(500));
         vGenericLEDSetOutput(1, 1);
     }
-}
+}*/
 
 /****************************************************************************
  *
@@ -520,7 +521,7 @@ PRIVATE void vHandleIdentifyRequest(uint16 u16Duration)
  * void
  *
  ****************************************************************************/
-PUBLIC void APP_cbTimerId(void *pvParam)
+/*PUBLIC void APP_cbTimerId(void *pvParam)
 {
     if (sThermostatDevice.sIdentifyServerCluster.u16IdentifyTime == 0)
     {
@@ -533,7 +534,7 @@ PUBLIC void APP_cbTimerId(void *pvParam)
         ZTIMER_eStop(u8TimerId);
         ZTIMER_eStart(u8TimerId, ZTIMER_TIME_MSEC(500));
     }
-}
+}*/
 
 /****************************************************************************/
 /***        END OF FILE                                                   ***/

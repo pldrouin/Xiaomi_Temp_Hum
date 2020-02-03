@@ -69,10 +69,10 @@
 /***        Exported Functions                                            ***/
 /****************************************************************************/
 PUBLIC void APP_ZCL_vInitialise(void);
-PUBLIC void APP_ZCL_vSetIdentifyTime(uint16 u16Time);
+//PUBLIC void APP_ZCL_vSetIdentifyTime(uint16 u16Time);
 PUBLIC void APP_ZCL_vTask(void);
 PUBLIC void APP_ZCL_vEventHandler(ZPS_tsAfEvent *psStackEvent);
-PUBLIC void APP_cbTimerId(void *pvParam);
+//PUBLIC void APP_cbTimerId(void *pvParam);
 PUBLIC void APP_cbTimerZclTick(void *pvParam);
 
 /****************************************************************************/
