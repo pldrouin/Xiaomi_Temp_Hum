@@ -15,7 +15,7 @@
 
 #define SHT3X_ADDR	(0x44)
 
-bool_t sht3x_alert=FALSE;
+uint16_t sht3x_lasthumtemp=0;
 
 PRIVATE bool_t sht3x_active=FALSE;
 
@@ -212,22 +212,21 @@ int sht3x_send_command(uint8_t msb, uint8_t lsb, bool_t stopafterlsb)
 	return -1;
 }
 
-int sht3x_write_alert_limit(uint8_t lsb, uint16_t hum, uint16_t temp)
+int sht3x_write_alert_limit(uint8_t lsb, uint16_t humtemp)
 {
-	uint16_t buf=(hum&65024)|(temp>>7);
 	uint8_t byte;
 	uint8_t crc;
-	DBG_vPrintf(TRACE_SI, "Write alert with 0x%04x 0x%04x reduced to 0x%04x\n",temp,hum,buf);
+	DBG_vPrintf(TRACE_SI, "Write alert with reduced value 0x%04x\n",humtemp);
 
 	if(!sht3x_send_command(0x61,lsb,FALSE)) {
-		byte=(uint8_t)(buf>>8);
+		byte=(uint8_t)(humtemp>>8);
 		vAHI_SiMasterWriteData8(byte);
 		crc8_init(&crc);
 		crc8_update(&crc, byte);
 		bAHI_SiMasterSetCmdReg(FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
 
 		if(!sht3x_transfer_wait(FALSE)) {
-			byte=(uint8_t)buf;
+			byte=(uint8_t)humtemp;
 			vAHI_SiMasterWriteData8(byte);
 			crc8_update(&crc, byte);
 			bAHI_SiMasterSetCmdReg(FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
@@ -281,16 +280,20 @@ int sht3x_read_two_values(uint8_t msb, uint8_t lsb, uint16_t* value0, uint16_t* 
 int sht3x_get_measurements(uint16_t* temp, uint16_t* hum)
 {
 	if(!sht3x_read_two_values(0xE0,0x00,temp,hum)) {
-		DBG_vPrintf(TRACE_SI, "Read values are 0x%04x 0x%04x\n",*temp,*hum);
+		uint16_t humtemp=sht3x_humtemp_reduced_value(*hum, *temp);
+		DBG_vPrintf(TRACE_SI, "Read values are 0x%04x 0x%04x, reduced value is 0x%04x\n",*temp,*hum,humtemp);
+
+
+		if(humtemp==sht3x_lasthumtemp) return 0;
 
 		if(!sht3x_send_command(0x30,0x93,TRUE)) {
 
 			//while(sht3x_i2c_clear_alerts()){}
 
-			if(!sht3x_write_alert_limit(0x16, *hum, *temp) &&  //High clear
-					!sht3x_write_alert_limit(0x0B, *hum, *temp) &&   //Low clear
-					!sht3x_write_alert_limit(0x1D, *hum+1024, *temp+160) && //Minimum for hum is 512, temp is 128. Add 1/4*LSB for average alarm with 0.75*LSB delta, from 0.25*LSB delta to 1.25*LSB delta.
-					!sht3x_write_alert_limit(0x00, *hum-1024, *temp-160)) { //Remove 1.25*LSB for average alarm with 0.75*LSB delta, from 0.25*LSB delta to 1.25*LSB delta.
+			if(!sht3x_write_alert_limit(0x16, humtemp) &&  //High clear
+					!sht3x_write_alert_limit(0x0B, humtemp) &&   //Low clear
+					!sht3x_write_alert_limit(0x1D, sht3x_humtemp_reduced_value(*hum+1024, *temp+160)) && //Minimum for hum is 512, temp is 128. Add 1/4*LSB for average alarm with 0.75*LSB delta, from 0.25*LSB delta to 1.25*LSB delta.
+					!sht3x_write_alert_limit(0x00, sht3x_humtemp_reduced_value(*hum-1024, *temp-160))) { //Remove 1.25*LSB for average alarm with 0.75*LSB delta, from 0.25*LSB delta to 1.25*LSB delta.
 
 				while(sht3x_send_command(0x20,0x32,FALSE)){}
 
@@ -299,7 +302,8 @@ int sht3x_get_measurements(uint16_t* temp, uint16_t* hum)
 				if(!sht3x_read_alert_high_clear(&hc))	DBG_vPrintf(TRUE, "Alert high clear is 0x%04x\n",hc);
 				if(!sht3x_read_alert_low_clear(&ls))	DBG_vPrintf(TRUE, "Alert low clear is 0x%04x\n",ls);
 				if(!sht3x_read_alert_low_set(&lc))		DBG_vPrintf(TRUE, "Alert low set is 0x%04x\n",lc);*/
-				return 0;
+				sht3x_lasthumtemp=humtemp;
+				return 1;
 			}
 		}
 

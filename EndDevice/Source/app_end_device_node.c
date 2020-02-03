@@ -132,9 +132,11 @@ PRIVATE void APP_vSetICDerivedLinkKey(void);
 /***        Exported Variables                                            ***/
 /****************************************************************************/
 const uint8 u8MyEndpoint = ENDDEVICE_APPLICATION_ENDPOINT;
-PUBLIC bool_t bDeepSleep;
+PUBLIC bool_t bDeeperSleep = TRUE;
+PUBLIC bool_t bSleepRamOn = FALSE;
 PUBLIC uint8 u8KeepAliveTime = KEEP_ALIVETIME;
-PUBLIC uint8 u8DeepSleepTime = DEEP_SLEEPTIME;
+PUBLIC uint8 u8WakeUpCondition = APP_WAKE_NONE;
+PUBLIC uint8 u8DeeperSleepIndex = 0;
 
 /****************************************************************************/
 /***        Local Variables                                               ***/
@@ -142,12 +144,15 @@ PUBLIC uint8 u8DeepSleepTime = DEEP_SLEEPTIME;
 
 PRIVATE teNodeState eNodeState;
 PRIVATE uint16 u16FastPoll;
+PRIVATE uint32_t u32JoinFailSleepTime[] = {2700, 5400, 10800, 21600, 43200, 0};
 PRIVATE bool_t bBDBJoinFailed = FALSE;
 PRIVATE bool_t bFailToJoin = FALSE;
+PRIVATE bool_t bBDBJoined = FALSE;
 PRIVATE pwrm_tsWakeTimerEvent    sWake;
 PRIVATE PDUM_thAPduInstance hAPduInst;
 PRIVATE bool_t bButtonDown = FALSE;
-PRIVATE uint8_t u8ButtonDownCount = 0;
+PRIVATE bool_t bButtonUp = FALSE;
+PRIVATE uint16_t u8ButtonDownTime = 0;
 /****************************************************************************/
 /***        Exported Functions                                            ***/
 /****************************************************************************/
@@ -252,18 +257,21 @@ PUBLIC void APP_vBdbCallback(BDB_tsBdbEvent *psBdbEvent)
         case BDB_EVENT_REJOIN_FAILURE:
             DBG_vPrintf(TRACE_APP_BDB,"APP: BDB_EVENT_REJOIN_FAILURE\n");
             bBDBJoinFailed = TRUE;
+            bBDBJoined = FALSE;
             sht3x_i2c_turnoff();
             break;
 
         case BDB_EVENT_REJOIN_SUCCESS:
-            vStartPolling();
+            //vStartPolling();
             eNodeState = E_RUNNING;
             bBDBJoinFailed = FALSE;
+            u8DeeperSleepIndex = 0;
+            bBDBJoined = TRUE;
             DBG_vPrintf(TRACE_APP_BDB,"APP: BDB_EVENT_REJOIN_SUCCESS\n");
 
             led_connect();
             sht3x_i2c_initialise();
-            sht3x_alert=TRUE;
+            u8WakeUpCondition = APP_WAKE_SHT3X;
             break;
 
 
@@ -273,10 +281,11 @@ PUBLIC void APP_vBdbCallback(BDB_tsBdbEvent *psBdbEvent)
             PDM_eSaveRecordData(PDM_ID_APP_END_DEVICE,
                                 &eNodeState,
                                 sizeof(teNodeState));
+            bBDBJoined = TRUE;
             led_connect();
             sht3x_i2c_initialise();
-            sht3x_alert=TRUE;
-            vStartPolling();
+            u8WakeUpCondition = APP_WAKE_SHT3X;
+            //vStartPolling();
             break;
 
         case BDB_EVENT_APP_START_POLLING:
@@ -377,8 +386,7 @@ PUBLIC void APP_taskEndDevice(void)
 		DBG_vPrintf(TRACE_APP_EVENT, "ZPR: App event %d, NodeState=%d\n", sAppEvent.eType, eNodeState);
 
 		if (sAppEvent.eType == APP_E_EVENT_BUTTON_UP) {
-			bButtonDown = FALSE;
-			u8ButtonDownCount = 0;
+			bButtonUp = TRUE;
 
 		} else if (sAppEvent.eType == APP_E_EVENT_BUTTON_DOWN) {
 			bButtonDown = TRUE;
@@ -480,6 +488,7 @@ PRIVATE void vAppHandleZdoEvents( BDB_tsZpsAfEvent *psZpsAfEvent)
             bFailToJoin = FALSE;
             bBDBJoinFailed = FALSE;
             u8KeepAliveTime = KEEP_ALIVETIME;
+            u8DeeperSleepIndex = 0;
             PDM_eSaveRecordData(PDM_ID_APP_END_DEVICE,
                                 &eNodeState,
                                 sizeof(teNodeState));
@@ -629,7 +638,7 @@ PUBLIC void APP_vFactoryResetRecords(void)
  ****************************************************************************/
 PRIVATE void vStartPolling(void)
 {
-    u16FastPoll = (uint16)(0.5/0.25);
+    u16FastPoll = (uint16)(0.5/0.25) + 1;
     ZTIMER_eStop(u8TimerPoll);
     if(ZTIMER_eStart(u8TimerPoll, POLL_TIME_FAST) != E_ZTIMER_OK)
     {
@@ -652,29 +661,59 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
 {
 
     uint32 u32Time = ZTIMER_TIME_MSEC(1000);
-    DBG_vPrintf(TRACE_POLL_SLEEP,"Initial activity %d\n",PWRM_u16GetActivityCount());
+    DBG_vPrintf(TRACE_POLL_SLEEP,"Initial activity %d button down time %d\n",PWRM_u16GetActivityCount(),u8ButtonDownTime);
 
-    if(bButtonDown && !u16FastPoll) {
-    	++u8ButtonDownCount;
+    if(bButtonUp) {
+    	bButtonUp = FALSE;
+    	bButtonDown = FALSE;
 
-    	if(u8ButtonDownCount == BUTTON_PRESS_RESET_TIME-1) led_device_reset();
+    	if(u8ButtonDownTime >= BUTTON_PRESS_RESET_TIME && u8ButtonDownTime < BUTTON_PRESS_DEEP_SLEEP_TIME) {
 
-    	else if(u8ButtonDownCount >= BUTTON_PRESS_RESET_TIME) {
+    		if (eNodeState == E_RUNNING) {
+    			if (ZPS_eAplZdoLeaveNetwork(0UL, FALSE, FALSE) != ZPS_E_SUCCESS ) {
+    				DBG_vPrintf(TRACE_APP, "Resetting from running state\n");
+    				APP_vFactoryResetRecords();
+    				vAHI_SwReset();
+    			}
 
-			if (eNodeState == E_RUNNING) {
-				if (ZPS_eAplZdoLeaveNetwork(0UL, FALSE, FALSE) != ZPS_E_SUCCESS ) {
-					DBG_vPrintf(TRACE_APP, "Resetting from running state\n");
-					u8ButtonDownCount=0;
-					APP_vFactoryResetRecords();
-					vAHI_SwReset();
-				}
+    		} else {
+    			DBG_vPrintf(TRACE_APP, "Resetting from state %u\n",eNodeState);
+    			APP_vFactoryResetRecords();
+    			vAHI_SwReset();
+    		}
 
-			} else {
-				DBG_vPrintf(TRACE_APP, "Resetting from state %u\n",eNodeState);
-				u8ButtonDownCount=0;
-				APP_vFactoryResetRecords();
-				vAHI_SwReset();
-			}
+    	} else if(u8ButtonDownTime >= BUTTON_PRESS_DEEP_SLEEP_TIME) {
+    		vStopAllTimers();
+    		DBG_vPrintf(TRACE_POLL_SLEEP, "Go Deep...\n");
+    		PWRM_vInit(E_AHI_SLEEP_DEEP);
+    		bDeeperSleep = TRUE;
+    		bSleepRamOn = FALSE;
+    		return;
+    	}
+    	u8ButtonDownTime=0;
+
+    } else if(bButtonDown) {
+    	bButtonDown = FALSE;
+    	u8KeepAliveTime = KEEP_ALIVETIME;
+
+    	if(u16FastPoll) u8ButtonDownTime=250;
+    	else u8ButtonDownTime=1000;
+
+    } else if(u8ButtonDownTime) {
+    	u8KeepAliveTime = KEEP_ALIVETIME;
+
+    	if(u16FastPoll) {
+    		u8ButtonDownTime+=250;
+
+    		if((u8ButtonDownTime >= BUTTON_PRESS_RESET_TIME-1000 && u8ButtonDownTime < BUTTON_PRESS_RESET_TIME-750) ||
+    				(u8ButtonDownTime >= BUTTON_PRESS_DEEP_SLEEP_TIME-1000 && u8ButtonDownTime < BUTTON_PRESS_DEEP_SLEEP_TIME-750)) led_device_reset();
+
+
+    	} else {
+    		u8ButtonDownTime+=1000;
+
+    		if((u8ButtonDownTime >= BUTTON_PRESS_RESET_TIME-1000 && u8ButtonDownTime < BUTTON_PRESS_RESET_TIME) ||
+    				(u8ButtonDownTime >= BUTTON_PRESS_DEEP_SLEEP_TIME-1000 && u8ButtonDownTime < BUTTON_PRESS_DEEP_SLEEP_TIME)) led_device_reset();
     	}
     }
 
@@ -689,34 +728,53 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
 
             if ((u8KeepAliveTime--) == 0)
             {
-                DBG_vPrintf(TRACE_POLL_SLEEP, "Go Deep...\n");
-                vStopAllTimers();
-                PWRM_vInit(E_AHI_SLEEP_DEEP);
-                bDeepSleep = TRUE;
-                return;
 
+            	vStopAllTimers();
+
+            	if(u32JoinFailSleepTime[u8DeeperSleepIndex]) {
+            		uint8 u8Status;
+            		u8Status = PWRM_eScheduleActivity(&sWake, u32JoinFailSleepTime[u8DeeperSleepIndex] * 1000 * SLEEP_TIMER_TICKS_PER_MS , vWakeCallBack);
+            		DBG_vPrintf(TRACE_POLL_SLEEP, "poll task: schedule %i s sleep status %02x\n", u32JoinFailSleepTime[u8DeeperSleepIndex], u8Status );
+            		++u8DeeperSleepIndex;
+            		bDeeperSleep = TRUE;
+            		bSleepRamOn = TRUE;
+            		u8KeepAliveTime = KEEP_ALIVE_FACTORY_NEW;
+            		DBG_vPrintf(TRACE_POLL_SLEEP,"Activity %d\n",PWRM_u16GetActivityCount());
+
+            	} else {
+            		DBG_vPrintf(TRACE_POLL_SLEEP, "Go Deep...\n");
+            		PWRM_vInit(E_AHI_SLEEP_DEEP);
+            		bDeeperSleep = TRUE;
+            		bSleepRamOn = FALSE;
+            	}
+            	return;
             }
             break;
 
         case E_RUNNING:
             DBG_vPrintf(TRACE_POLL_SLEEP, "Poll & Sleep Keepalive %d Deep Sleep %d BDB Rejoin Failed %d Failed to Join %d\n",
-                    u8KeepAliveTime, u8DeepSleepTime, bBDBJoinFailed, bFailToJoin);
+                    u8KeepAliveTime, u8DeeperSleepIndex, bBDBJoinFailed, bFailToJoin);
 
             if (bBDBJoinFailed) {
+            	vStopAllTimers();
 
-                /* Manage rejoin attempts,then short wait, then deep sleep */
-                u32Time = ZTIMER_TIME_MSEC(1000);
+            	if(u32JoinFailSleepTime[u8DeeperSleepIndex]) {
+            		uint8 u8Status;
+            		u8Status = PWRM_eScheduleActivity(&sWake, u32JoinFailSleepTime[u8DeeperSleepIndex] * 1000 * SLEEP_TIMER_TICKS_PER_MS , vWakeCallBack);
+            		DBG_vPrintf(TRACE_POLL_SLEEP, "poll task: schedule %i s sleep status %02x\n", u32JoinFailSleepTime[u8DeeperSleepIndex], u8Status );
+            		++u8DeeperSleepIndex;
+            		bDeeperSleep = TRUE;
+            		bSleepRamOn = TRUE;
+            		u8KeepAliveTime = KEEP_ALIVETIME;
+            		DBG_vPrintf(TRACE_POLL_SLEEP,"Activity %d\n",PWRM_u16GetActivityCount());
 
-                if (u8DeepSleepTime) {
-                    u8DeepSleepTime--;
-
-                } else {
-                    vStopAllTimers();
+            	} else {
                     DBG_vPrintf(TRACE_POLL_SLEEP, "join failed: go deep... %d\n", PWRM_u16GetActivityCount());
                     PWRM_vInit(E_AHI_SLEEP_DEEP);
-                    bDeepSleep = TRUE;
-                    return;
+                    bDeeperSleep = TRUE;
+                    bSleepRamOn = FALSE;
                 }
+            	return;
 
             } else { // (!bBDBJoinFailed)
 
@@ -724,8 +782,8 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
                     /* stop sleeping for the duration of rejoin attempts */
                     u8KeepAliveTime = KEEP_ALIVETIME;
 
-                } else if(sht3x_alert) {
-            		DBG_vPrintf(TRACE_APP, "\nSHT ALERT!\n");
+                } else if(bBDBJoined && u8WakeUpCondition>0) {
+            		//DBG_vPrintf(TRACE_APP, "\nSHT ALERT!\n");
             		/*uint16_t status;
 
             		while(sht3x_read_status(&status)){}
@@ -733,34 +791,46 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
 
             		if(status&SHT3X_STATUS_ALERT) {*/
             			uint16_t temp, hum;
+            			int measret;
 
-            			while(sht3x_get_measurements(&temp, &hum)){}
+            			while((measret=sht3x_get_measurements(&temp, &hum))<0){}
             			DBG_vPrintf(TRACE_APP, "Values are %i/100 C, %i/100 %%\n",((uint32_t)(temp)*17500)/65535-4500,((uint32_t)hum)*10000/65535);
 
-            			tsZCL_Address destaddr={E_ZCL_AM_SHORT, {0x0000}};
+            			if(measret>0 || u8WakeUpCondition!=APP_WAKE_SHT3X) {
+            				DBG_vPrintf(TRACE_APP, "Transmitting measurement...\n");
+            				tsZCL_Address destaddr={E_ZCL_AM_SHORT, {0x0000}};
 
-            			sThermostatDevice.sTemperatureMeasurementServerCluster.i16MeasuredValue=temp*17500/65535-4500;
-            			sThermostatDevice.sRelativeHumidityMeasurementServerCluster.u16MeasuredValue=hum*10000/65535;
-            			//PDUM_eAPduInstanceSetPayloadSize(hAPduInst, 0);
+            				sThermostatDevice.sTemperatureMeasurementServerCluster.i16MeasuredValue=temp*17500/65535-4500;
+            				sThermostatDevice.sRelativeHumidityMeasurementServerCluster.u16MeasuredValue=hum*10000/65535;
+            				//PDUM_eAPduInstanceSetPayloadSize(hAPduInst, 0);
 
-            			int32_t i;
-            			//led_pulse();
+            				/*int8_t i;
+            				uint8_t numfails=0;
+            				led_pulse();
 
-            			for(i=ATTRREPORTNUMTRIALS-1; i>=0; --i) {
-            				if(!eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst))
-            					break;
-            				DBG_vPrintf(TRACE_APP, "Failed to send temperature measurement\n");
-            			}
+            				for(i=ATTRREPORTNUMTRIALS-1; i>=0; --i) {
+            					if(!eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst))
+            						break;
+            					DBG_vPrintf(TRACE_APP, "Failed to send temperature measurement\n");
+            					++numfails;
+            				}
 
 
-            			for(i=ATTRREPORTNUMTRIALS-1; i>=0; --i) {
-            				if(!eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_RELATIVE_HUMIDITY_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst))
-            					break;
-            				DBG_vPrintf(TRACE_APP, "Failed to send relative humidity measurement\n");
+            				for(i=ATTRREPORTNUMTRIALS-1; i>=0; --i) {
+            					if(!eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_RELATIVE_HUMIDITY_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst))
+            						break;
+            					DBG_vPrintf(TRACE_APP, "Failed to send relative humidity measurement\n");
+            					++numfails;
+            				}
+
+            				if(numfails == 2*ATTRREPORTNUMTRIALS) u8KeepAliveTime = KEEP_ALIVETIME;*/
+
+            				eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst);
+            				eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_RELATIVE_HUMIDITY_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst);
             			}
 
             		/*}*/
-                	sht3x_alert=FALSE;
+            		u8WakeUpCondition = APP_WAKE_NONE;
                 	//break; //Skip polling
                 }
 
@@ -768,20 +838,12 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
                 if(u8KeepAliveTime == 0) {
 
                 	vStopAllTimers();
-                	//if (u8DeepSleepTime)
-                	//{
                 	uint8 u8Status;
-                	u8Status = PWRM_eScheduleActivity(&sWake, (SLEEP_DURATION_MS * SLEEP_TIMER_TICKS_PER_MS) , vWakeCallBack);
+                	u8Status = PWRM_eScheduleActivity(&sWake, SLEEP_DURATION_MS * SLEEP_TIMER_TICKS_PER_MS , vWakeCallBack);
                 	DBG_vPrintf(TRACE_POLL_SLEEP, "poll task: schedule sleep status %02x\n",
                 			u8Status );
-                	/*}
-
-                		else
-                		{
-                			PWRM_vInit(E_AHI_SLEEP_DEEP);
-                			bDeepSleep = TRUE;
-                			DBG_vPrintf(TRACE_POLL_SLEEP, "poll task: go deep\n");
-                		}*/
+                	bDeeperSleep = FALSE;
+                	bSleepRamOn = TRUE;
 
                     DBG_vPrintf(TRACE_POLL_SLEEP,"Activity %d\n",PWRM_u16GetActivityCount());
                     return;
@@ -798,15 +860,17 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
                        }
                    }
 
-                   if (u16FastPoll) {
+                   if (u16FastPoll>1) {
                        u16FastPoll--;
                        u32Time = POLL_TIME_FAST;
 
-                       if (u16FastPoll == 0) {
+                       if (u16FastPoll == 1) {
                            DBG_vPrintf(TRACE_POLL_SLEEP, "\nStop fast poll");
                        }
 
-                   } else { // (!u16FastPoll)
+                   } else { // (u16FastPoll<=1)
+
+                	   if(u16FastPoll) u16FastPoll=0;
                        /* Decrement the keep alive in the normal operation mode
                         * Not in active scan mode or while fast polling
                         */
@@ -878,18 +942,13 @@ PRIVATE void vAppSendIdentifyStop( uint16 u16Address, uint8 u8Endpoint)
  ****************************************************************************/
 PRIVATE void vWakeCallBack(void)
 {
-    /*Decrement the deepsleep count so that if there is no activity for
-     * DEEP_SLEEPTIME then the module is put to deep sleep.
-     * */
-    if (0 < u8DeepSleepTime)
-{
-#if NEVER_DEEP_SLEEP
-        u8DeepSleepTime = DEEP_SLEEPTIME;
-#else
-        u8DeepSleepTime--;
-#endif
+    if (eNodeState == E_RUNNING && (bBDBJoinFailed)) {
+    	bBDBJoinFailed = FALSE;
+    	/* trigger a new round of rejoin attempts */
+    	DBG_vPrintf(TRACE_APP_EVENT, "Call BDB vStart\n");
+    	sBDB.sAttrib.bbdbNodeIsOnANetwork = TRUE;
+    	BDB_vStart();
     }
-
 }
 
 /****************************************************************************

@@ -95,7 +95,7 @@
 
 PRIVATE void APP_vInitialise(void);
 PRIVATE void vfExtendedStatusCallBack(ZPS_teExtendedStatus eExtendedStatus);
-PRIVATE void vSetUpWakeUpConditions(bool_t bDeepSleep);
+PRIVATE void vSetUpWakeUpConditions(bool_t bDeeperSleep);
 
 /**
  * Power manager Callback.
@@ -261,10 +261,10 @@ void vAppRegisterPWRMCallbacks(void)
  ****************************************************************************/
 PWRM_CALLBACK(PreSleep)
 {
-    DBG_vPrintf(TRACE_SLEEP,"Sleeping mode %d...\n", bDeepSleep);
+    DBG_vPrintf(TRACE_SLEEP,"Sleeping mode %d...\n", bDeeperSleep);
     /* If the power mode is with RAM held do the following
      * else not required as the entry point will init everything*/
-    if(!bDeepSleep)
+    if(bSleepRamOn)
     {
         /* sleep memory held */
        vAppApiSaveMacSettings();
@@ -273,7 +273,7 @@ PWRM_CALLBACK(PreSleep)
     ZTIMER_vSleep();
 
     /* Set up wake up dio input */
-    vSetUpWakeUpConditions(bDeepSleep);
+    vSetUpWakeUpConditions(bDeeperSleep);
 
     sht3x_i2c_disable();
 
@@ -316,29 +316,6 @@ PWRM_CALLBACK(Wakeup)
 #endif
 
     uint32_t diowake=u32AHI_DioWakeStatus();
-    bool_t button_wake = FALSE;
-
-    if(diowake&(APP_BUTTONS_DIO_MASK)) {
-    	u8KeepAliveTime = KEEP_ALIVETIME;
-    	u8DeepSleepTime = DEEP_SLEEPTIME;
-    	button_wake=TRUE;
-    	sht3x_alert=TRUE;
-
-    }
-#if (defined SERIAL_COMMS && defined RX_WAKE)
-    else if(diowake&(1<<UART_RXD_DIO)) {
-    	u8KeepAliveTime = KEEP_ALIVETIME;
-    	u8DeepSleepTime = DEEP_SLEEPTIME;
-
-    }
-#endif
-    else sht3x_alert=TRUE;
-
-   /* if(diowake&(1<<DIO_SHT_ALERT)) {
-    	//u8KeepAliveTime = KEEP_ALIVETIME;
-    	//u8DeepSleepTime = DEEP_SLEEPTIME;
-    	sht3x_alert=TRUE;
-    }*/
 
 #if (defined SERIAL_COMMS && defined RX_WAKE)
     vAHI_DioInterruptEnable(0, (1<<UART_RXD_DIO));
@@ -359,14 +336,11 @@ PWRM_CALLBACK(Wakeup)
     DBG_vPrintf(TRACE_SLEEP, "\n\nAPP: Woken up (CB)");
     DBG_vPrintf(TRACE_SLEEP, "\nAPP: Warm Waking powerStatus = 0x%x\n", u8AHI_PowerStatus());
     DBG_vPrintf(TRACE_SLEEP, "DioWake: 0x%08x\n",diowake);
-    DBG_vPrintf(TRACE_SLEEP, "SHT3X alert: %u\n",sht3x_alert);
-    DBG_vPrintf(TRACE_SLEEP, "Button wake: %u\n",button_wake);
-
 
     /* If the power status is OK and RAM held while sleeping
      * restore the MAC settings
      * */
-    if( (u8AHI_PowerStatus()) && ( !bDeepSleep) )
+    if( (u8AHI_PowerStatus()) && bSleepRamOn )
     {
         // Restore Mac settings (turns radio on)
         vMAC_RestoreSettings();
@@ -382,13 +356,34 @@ PWRM_CALLBACK(Wakeup)
     UART_vRtsStartFlow();
 #endif
 
+    if(diowake&(APP_BUTTONS_DIO_MASK)) {
+        DBG_vPrintf(TRACE_SLEEP, "Button wake\n");
+    	u8WakeUpCondition = APP_WAKE_BUTTON;
+    	u8KeepAliveTime = KEEP_ALIVETIME;
+    	APP_cbTimerButtonScan(NULL);
+    }
+#if (defined SERIAL_COMMS && defined RX_WAKE)
+    else if(diowake&(1<<UART_RXD_DIO)) {
+        DBG_vPrintf(TRACE_SLEEP, "Uart RX wake\n");
+    	u8WakeUpCondition = APP_WAKE_NONE;
+    	u8KeepAliveTime = KEEP_ALIVETIME;
+    }
+#endif
+    else if(diowake&(1<<DIO_SHT_ALERT)) {
+        DBG_vPrintf(TRACE_SLEEP, "SHT3x wake\n");
+    	u8WakeUpCondition = APP_WAKE_SHT3X;
+
+    } else { //Timer wake
+        DBG_vPrintf(TRACE_SLEEP, "Timer wake\n");
+    	u8WakeUpCondition = APP_WAKE_TIMER;
+    	u8KeepAliveTime = 2;
+    }
+
     sht3x_i2c_enable();
 
     /* Activate the SleepTask, that would start the SW timer and polling would continue
      * */
     APP_vStartUpHW();
-
-    if(button_wake) APP_cbTimerButtonScan(NULL);
 }
 /****************************************************************************
  *
@@ -400,7 +395,7 @@ PWRM_CALLBACK(Wakeup)
  * to drive the LHS led indicator if never sleeping
  *
  ****************************************************************************/
-PRIVATE void vSetUpWakeUpConditions(bool_t bDeepSleep)
+PRIVATE void vSetUpWakeUpConditions(bool_t bDeeperSleep)
 {
     u32AHI_DioWakeStatus();                         /* clear interrupts */
     //vAHI_DioSetDirection(APP_BUTTONS_DIO_MASK|(1<<DIO_SHT_ALERT),0);   /* Set Power Button(DIO0) and SHT DIO line as Input */
@@ -412,11 +407,11 @@ PRIVATE void vSetUpWakeUpConditions(bool_t bDeepSleep)
 
 
     DBG_vPrintf(TRACE_SLEEP, "Going to sleep: Buttons:%08x Mask:%08x\n", u32AHI_DioReadInput() & APP_BUTTONS_DIO_MASK_FOR_DEEP_SLEEP, APP_BUTTONS_DIO_MASK_FOR_DEEP_SLEEP);
-    if(bDeepSleep)
+    if(bDeeperSleep)
     {
     	/* Not waking up on SHT DIO line from deep sleep as SHT is to be disabled during deep sleep */
         vAHI_DioWakeEdge(0,APP_BUTTONS_DIO_MASK_FOR_DEEP_SLEEP);
-        vAHI_DioWakeEnable(APP_BUTTONS_DIO_MASK_FOR_DEEP_SLEEP,0);
+        vAHI_DioWakeEnable(APP_BUTTONS_DIO_MASK_FOR_DEEP_SLEEP,131071^APP_BUTTONS_DIO_MASK_FOR_DEEP_SLEEP);
     }
     else
     {
@@ -431,7 +426,11 @@ PRIVATE void vSetUpWakeUpConditions(bool_t bDeepSleep)
 #if (defined SERIAL_COMMS && defined RX_WAKE)
         		|(1<<UART_RXD_DIO)
 #endif
-        		,0);     /* Set the Wake up DIO Power Button */
+        		,131071^(APP_BUTTONS_DIO_MASK|(1<<DIO_SHT_ALERT)
+#if (defined SERIAL_COMMS && defined RX_WAKE)
+        		|(1<<UART_RXD_DIO)
+#endif
+        		));     /* Set the Wake up DIO Power Button */
 
     }
 }

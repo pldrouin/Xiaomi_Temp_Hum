@@ -40,9 +40,7 @@
 #include <stdlib.h>
 #include "dbg.h"
 #include "pdum_apl.h"
-#include "pdum_gen.h"
 #include "pwrm.h"
-#include "zps_gen.h"
 #include "app_end_device_node.h"
 #include "app_zcl_task.h"
 #include "app_buttons.h"
@@ -54,6 +52,12 @@
 #include "ZQueue.h"
 #include "ZTimer.h"
 
+#define apduZDP &pdum_apduZDP
+#define apduZCL &pdum_apduZCL
+
+/* APDUs */
+extern const struct pdum_tsAPdu_tag pdum_apduZDP;
+extern const struct pdum_tsAPdu_tag pdum_apduZCL;
 
 /****************************************************************************/
 /***        Macro Definitions                                             ***/
@@ -129,7 +133,6 @@ PUBLIC void APP_taskAtSerial( void)
     {
         DBG_vPrintf(TRACE_SERIAL, "Rx Char %02x\n", u8RxByte);
         u8KeepAliveTime = KEEP_ALIVETIME;
-        u8DeepSleepTime = DEEP_SLEEPTIME;
         vProcessRxChar(u8RxByte);
     }
 }
@@ -352,7 +355,7 @@ PRIVATE void vProcessCommand(void)
     {
            DBG_vPrintf(TRUE, "Temperature and humidity\n");
            uint16_t temp, hum;
-           while(sht3x_get_measurements(&temp, &hum)){}
+           while(sht3x_get_measurements(&temp, &hum)<0){}
            DBG_vPrintf(TRUE, "Values are %i/100 C, %i/100 %%\n",((uint32_t)(temp)*17500)/65535-4500,((uint32_t)hum)*10000/65535);
     }
 

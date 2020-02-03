@@ -85,19 +85,9 @@
 			<location>Z:/bstudio_nxp/workspace/Xiaomi_Temp_Hum_Zigbee3_Base_Device/Common</location>
 		</link>
 		<link>
-			<name>Coordinator</name>
-			<type>2</type>
-			<location>Z:/bstudio_nxp/workspace/Xiaomi_Temp_Hum_Zigbee3_Base_Device/Coordinator</location>
-		</link>
-		<link>
 			<name>EndDevice</name>
 			<type>2</type>
 			<location>Z:/bstudio_nxp/workspace/Xiaomi_Temp_Hum_Zigbee3_Base_Device/EndDevice</location>
-		</link>
-		<link>
-			<name>Router</name>
-			<type>2</type>
-			<location>Z:/bstudio_nxp/workspace/Xiaomi_Temp_Hum_Zigbee3_Base_Device/Router</location>
 		</link>
 	</linkedResources>
 </projectDescription>

@@ -48,10 +48,8 @@
 #endif
 
 #if (UART == E_AHI_UART_0)
-#define UART_START_ADR      0x30000000UL
 #define UART_RXD_DIO	(7)
 #elif (UART == E_AHI_UART_1)
-#define UART_START_ADR      0x40000000UL
 #define UART_RXD_DIO	(15)
 #endif
 

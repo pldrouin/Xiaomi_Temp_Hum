@@ -48,11 +48,11 @@
 #define KEEP_ALIVE_FACTORY_NEW  (10)
 #define KEEP_ALIVETIME (5)
 #define FIND_AND_BIND_IME (182)
-#define DEEP_SLEEPTIME (10)
 #define SLEEP_DURATION_MS (3480000)
 #define SLEEP_TIMER_TICKS_PER_MS (32)
 
-#define BUTTON_PRESS_RESET_TIME (5)
+#define BUTTON_PRESS_RESET_TIME (5000)
+#define BUTTON_PRESS_DEEP_SLEEP_TIME (10000)
 
 #define NEVER_DEEP_SLEEP   FALSE
 //#define NEVER_DEEP_SLEEP   TRUE
@@ -65,6 +65,12 @@
 /****************************************************************************/
 /***        Type Definitions                                              ***/
 /****************************************************************************/
+typedef enum {
+            APP_WAKE_NONE = 0,
+            APP_WAKE_TIMER,
+            APP_WAKE_BUTTON,
+            APP_WAKE_SHT3X,
+} APP_WakeUpCond;
 
 /****************************************************************************/
 /***        Exported Functions                                            ***/
@@ -77,9 +83,10 @@ PUBLIC void APP_vStartUpHW(void);
 /****************************************************************************/
 /***        External Variables                                            ***/
 /****************************************************************************/
-extern PUBLIC bool_t bDeepSleep;
+extern PUBLIC bool_t bDeeperSleep;
+extern PUBLIC bool_t bSleepRamOn;
 extern uint8 u8KeepAliveTime;
-extern uint8 u8DeepSleepTime;
+extern uint8 u8WakeUpCondition;
 /****************************************************************************/
 /****************************************************************************/
 /****************************************************************************/
