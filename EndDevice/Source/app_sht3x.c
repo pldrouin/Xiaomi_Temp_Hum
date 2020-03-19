@@ -292,8 +292,8 @@ int sht3x_get_measurements(uint16_t* temp, uint16_t* hum)
 
 			if(!sht3x_write_alert_limit(0x16, humtemp) &&  //High clear
 					!sht3x_write_alert_limit(0x0B, humtemp) &&   //Low clear
-					!sht3x_write_alert_limit(0x1D, sht3x_humtemp_reduced_value(*hum+1024, *temp+160)) && //Minimum for hum is 512, temp is 128. Add 1/4*LSB for average alarm with 0.75*LSB delta, from 0.25*LSB delta to 1.25*LSB delta.
-					!sht3x_write_alert_limit(0x00, sht3x_humtemp_reduced_value(*hum-1024, *temp-160))) { //Remove 1.25*LSB for average alarm with 0.75*LSB delta, from 0.25*LSB delta to 1.25*LSB delta.
+					!sht3x_write_alert_limit(0x1D, sht3x_humtemp_reduced_value(*hum+2048, *temp+160)) && //Minimum for hum is 512, temp is 128. Add 1/4*LSB for average alarm with 0.75*LSB delta, from 0.25*LSB delta to 1.25*LSB delta.
+					!sht3x_write_alert_limit(0x00, sht3x_humtemp_reduced_value(*hum-2048, *temp-160))) { //Remove 1.25*LSB for average alarm with 0.75*LSB delta, from 0.25*LSB delta to 1.25*LSB delta.
 
 				while(sht3x_send_command(0x20,0x32,FALSE)){}
 

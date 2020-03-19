@@ -178,6 +178,8 @@ PUBLIC void vAppMain(void)
         #endif
     }
 
+    //uint8 array[]={0xD2, 0x85, 0x01, 0x2A, 0xEC, 0xF4, 0x80, 0xDE, 0x37, 0xCB, 0x19, 0x5E, 0x3B, 0x39, 0xC5, 0xD4};
+
     /* idle task commences here */
     DBG_vPrintf(TRUE,"\n");
     DBG_vPrintf(TRUE, "***********************************************\n");
@@ -216,6 +218,10 @@ PUBLIC void vAppMain(void)
         APP_vNtagStart(ENDDEVICE_APPLICATION_ENDPOINT);
     }
 #endif
+
+    //ZPS_teStatus status=ZPS_vAplSecSetInitialSecurityState(ZPS_ZDO_PRECONFIGURED_LINK_KEY, array, 0, ZPS_APS_GLOBAL_LINK_KEY);
+
+    //DBG_vPrintf(TRACE_APP, "APP: Set key returned %d\n",status);
 
     DBG_vPrintf(TRACE_APP, "APP: Entering APP_vMainLoop()\n");
     APP_vMainLoop();

@@ -623,6 +623,7 @@ PUBLIC void APP_vFactoryResetRecords(void)
     eNodeState = E_STARTUP;
     PDM_eSaveRecordData(PDM_ID_APP_END_DEVICE, &eNodeState, sizeof(teNodeState));
     ZPS_vSaveAllZpsRecords();
+    u8DeeperSleepIndex = 0;
 }
 
 /****************************************************************************

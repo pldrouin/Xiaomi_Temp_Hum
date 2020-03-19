@@ -82,12 +82,12 @@
 		<link>
 			<name>Common</name>
 			<type>2</type>
-			<location>Z:/bstudio_nxp/workspace/Xiaomi_Temp_Hum_Zigbee3_Base_Device/Common</location>
+			<locationURI>PARENT-1-PROJECT_LOC/Common</locationURI>
 		</link>
 		<link>
 			<name>EndDevice</name>
 			<type>2</type>
-			<location>Z:/bstudio_nxp/workspace/Xiaomi_Temp_Hum_Zigbee3_Base_Device/EndDevice</location>
+			<locationURI>PARENT-1-PROJECT_LOC/EndDevice</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>
