@@ -56,6 +56,7 @@
 #include "app_main.h"
 #include "app_buttons.h"
 #include "app_sht3x.h"
+#include "app_batt.h"
 #include "app_led.h"
 #include "ZTimer.h"
 #include "app_events.h"
@@ -271,7 +272,7 @@ PUBLIC void APP_vBdbCallback(BDB_tsBdbEvent *psBdbEvent)
 
             led_connect();
             sht3x_i2c_initialise();
-            u8WakeUpCondition = APP_WAKE_SHT3X;
+            u8WakeUpCondition = APP_WAKE_BUTTON;
             break;
 
 
@@ -284,7 +285,7 @@ PUBLIC void APP_vBdbCallback(BDB_tsBdbEvent *psBdbEvent)
             bBDBJoined = TRUE;
             led_connect();
             sht3x_i2c_initialise();
-            u8WakeUpCondition = APP_WAKE_SHT3X;
+            u8WakeUpCondition = APP_WAKE_BUTTON;
             //vStartPolling();
             break;
 
@@ -804,6 +805,7 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
             				sThermostatDevice.sTemperatureMeasurementServerCluster.i16MeasuredValue=temp*17500/65535-4500;
             				sThermostatDevice.sRelativeHumidityMeasurementServerCluster.u16MeasuredValue=hum*10000/65535;
 
+
             				//PDUM_eAPduInstanceSetPayloadSize(hAPduInst, 0);
 
             				/*int8_t i;
@@ -826,6 +828,13 @@ PUBLIC void APP_cbTimerPoll(void *pvParam)
             				}
 
             				if(numfails == 2*ATTRREPORTNUMTRIALS) u8KeepAliveTime = KEEP_ALIVETIME;*/
+
+            				if(u8WakeUpCondition!=APP_WAKE_SHT3X) {
+            					sThermostatDevice.sPowerConfigServerCluster.u8BatteryVoltage=(uint8_t)((batt_read_voltage()-2500)>>2);
+            					DBG_vPrintf(TRACE_APP, "Voltage is %i/1000 V\n",((uint16_t)sThermostatDevice.sPowerConfigServerCluster.u8BatteryVoltage)*4+2500);
+            					if(eZCL_ReportAttribute(&destaddr, GENERAL_CLUSTER_ID_POWER_CONFIGURATION, E_CLD_PWRCFG_ATTR_ID_BATTERY_VOLTAGE, 0x01, 0x01, hAPduInst)!=E_ZCL_SUCCESS)
+            						DBG_vPrintf(TRACE_APP, "Failed to send voltage measurement\n");
+            				}
 
             				eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_TEMPERATURE_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst);
             				eZCL_ReportAttribute(&destaddr, MEASUREMENT_AND_SENSING_CLUSTER_ID_RELATIVE_HUMIDITY_MEASUREMENT, 0x0000, 0x01, 0x01, hAPduInst);

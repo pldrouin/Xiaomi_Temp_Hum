@@ -272,6 +272,7 @@ APPSRC += app_end_device_node.c
 APPSRC += app_zcl_task.c
 APPSRC += app_buttons.c
 APPSRC += app_sht3x.c
+APPSRC += app_batt.c
 APPSRC += app_led.c
 ifeq ($(APP_NTAG_ICODE),1)
 APPSRC += app_ntag_icode.c

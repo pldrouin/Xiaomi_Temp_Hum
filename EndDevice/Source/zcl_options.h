@@ -98,6 +98,11 @@
 
 #define CLD_RELATIVE_HUMIDITY_MEASUREMENT
 #define RELATIVE_HUMIDITY_MEASUREMENT_SERVER
+
+#define CLD_POWER_CONFIGURATION
+#define POWER_CONFIGURATION_SERVER
+#define CLD_PWRCFG_ATTR_BATTERY_VOLTAGE
+#define CLD_PWRCFG_ATTR_BATTERY_PERCENTAGE_REMAINING
 /****************************************************************************/
 /*             Basic Cluster - Optional Attributes                          */
 /*                                                                          */
